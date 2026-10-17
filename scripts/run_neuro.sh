@@ -36,6 +36,23 @@ case "${1:-}" in
   report)
     ssh "$TARGET" "sed -n '/=== REPORT/,\$p' $DIR/neuro_setup.log 2>/dev/null | head -40"
     ;;
+  pulse)
+    ssh "$TARGET" "echo '--- процессы ---'; pgrep -af 'setup_neuro|pip3 install' | head -5 || true; echo '--- размеры ---'; du -sh /tmp/pip-* 2>/dev/null | head -5; du -sh /home/sadmin/.cache/pip ~/.cache/pip 2>/dev/null; du -sh $DIR/venv 2>/dev/null; echo '--- хвост лога ---'; tail -3 $DIR/neuro_setup.log 2>/dev/null"
+    ;;
+  frames)
+    echo "--- заливка w1_frames (rsync, докачиваемо; ~сотни МБ) ---"
+    rsync -az --partial --info=progress2 "$HERE/../w1_frames" "$TARGET:$DIR/"
+    ;;
+  preds)
+    ssh "$TARGET" "mkdir -p $DIR/scripts"
+    cat "$HERE/predlabel_w1.py" | ssh "$TARGET" "cat > $DIR/scripts/predlabel_w1.py"
+    cat "$HERE/make_w1_frames.py" | ssh "$TARGET" "cat > $DIR/scripts/make_w1_frames.py" 2>/dev/null
+    ssh "$TARGET" "cd $DIR && (nohup $DIR/venv/bin/python scripts/predlabel_w1.py > predlabel.log 2>&1 &) && echo 'предразметка запущена'"
+    echo "--- прогресс: $0 plog ---"
+    ;;
+  plog)
+    ssh "$TARGET" "tail -40 $DIR/predlabel.log 2>/dev/null || echo 'лога ещё нет'"
+    ;;
   full)
     ssh "$TARGET" "cat $DIR/neuro_setup.log 2>/dev/null || echo 'лога ещё нет'"
     ;;

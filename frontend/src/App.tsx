@@ -4,10 +4,22 @@ import { Icon } from "./Icon";
 import { LoadingMark } from "./LoadingMark";
 import { DemoVerdict } from "./DemoVerdict";
 import { Verdict } from "./Verdict";
+import { Lightbox } from "./Lightbox";
+import { ApiKeyModal } from "./ApiKeyModal";
 import { formatTime, validateVideo } from "./video";
 import { finishTransition, transition } from "./motion";
 import { apiOptions, awaitJob, uploadForAnalysis } from "./api";
-import type { ApiOptions, Job, JobResult } from "./api";
+import type { ApiOptions, EvidenceFrame, Job, JobResult } from "./api";
+
+const FORTEE_API_KEY_STORAGE = "forte-api-key";
+
+function readStoredApiKey(): string {
+  try {
+    return localStorage.getItem(FORTEE_API_KEY_STORAGE) ?? "";
+  } catch {
+    return "";
+  }
+}
 
 type Stage =
   | "idle"
@@ -80,6 +92,12 @@ export default function App() {
   const [jobId, setJobId] = useState("");
   const [result, setResult] = useState<JobResult | null>(null);
   const [failReason, setFailReason] = useState("");
+  const [apiKey, setApiKey] = useState<string>(readStoredApiKey);
+  const [apiModalOpen, setApiModalOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{
+    frames: EvidenceFrame[];
+    index: number;
+  } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const openingStarted = useRef(0);
@@ -98,6 +116,7 @@ export default function App() {
         : stage;
   const busy =
     stage === "opening" || stage === "checking-intro" || stage === "checking";
+  const overlayOpen = apiModalOpen || lightbox !== null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -172,6 +191,26 @@ export default function App() {
     }, 20000);
     return () => window.clearTimeout(timer);
   }, [stage, file]);
+
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [overlayOpen]);
+
+  function saveApiKey(key: string) {
+    try {
+      localStorage.setItem(FORTEE_API_KEY_STORAGE, key);
+    } catch {
+      /* localStorage может быть запрещён — оставляем в памяти до перезагрузки. */
+    }
+    setApiKey(key);
+    setApiModalOpen(false);
+    if (file) chooseFile(file);
+  }
 
   function chooseFile(next?: File) {
     if (!next) return;
@@ -296,6 +335,7 @@ export default function App() {
   return (
     <div
       className={`app ${split ? "app-split" : ""} ${dragging ? "is-dragging" : ""}`}
+      inert={overlayOpen}
       onDragOver={(event) => {
         event.preventDefault();
         if (event.dataTransfer.types.includes("Files")) setDragging(true);
@@ -318,6 +358,16 @@ export default function App() {
         </button>
         <div className="header-right">
           <span className="header-caption">Увидеть больше.</span>
+          <button
+            type="button"
+            className="api-button"
+            onClick={() => setApiModalOpen(true)}
+            aria-label="API-ключ"
+            title={apiKey ? "API-ключ задан" : "Введите API-ключ"}
+          >
+            <span className="api-button-dot" data-on={!!apiKey} aria-hidden="true" />
+            API
+          </button>
           <div
             className="theme-switch"
             role="group"
@@ -604,6 +654,11 @@ export default function App() {
                     result={result}
                     onReset={reset}
                     onSeek={seekTo}
+                    onFrameOpen={(violationIndex, frameIndex) => {
+                      const frames =
+                        result.violations[violationIndex]?.evidence_frames ?? [];
+                      setLightbox({ frames, index: frameIndex });
+                    }}
                   />
                 ) : (
                   <DemoVerdict
@@ -645,6 +700,21 @@ export default function App() {
           <span>Отпустите видео здесь</span>
           <p>MOV, MP4 · до 200 МБ</p>
         </div>
+      )}
+      <ApiKeyModal
+        open={apiModalOpen}
+        initialValue={apiKey}
+        onClose={() => setApiModalOpen(false)}
+        onSave={saveApiKey}
+      />
+      {lightbox && (
+        <Lightbox
+          frames={lightbox.frames}
+          initialIndex={lightbox.index}
+          videoName={file?.name}
+          onClose={() => setLightbox(null)}
+          onSeek={seekTo}
+        />
       )}
     </div>
   );

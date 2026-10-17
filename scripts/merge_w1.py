@@ -20,6 +20,8 @@ import os
 import shutil
 import sys
 
+import cv2  # размеры/вёрстка кадров для --with-coco
+
 ROOT = "/home/zhus/Desktop/datathon"
 
 # Один источник правды по классам — как в scripts/make_w1_packs.py (синхронизируем руками).
@@ -71,6 +73,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--boxes-format", choices=("xywh", "xyxy"), default="xywh")
     ap.add_argument("--dry", action="store_true", help="только статистика, датасет не писать")
+    ap.add_argument("--with-coco", action="store_true",
+                    help="дополнительно собрать дерево под RF-DETR: "
+                         "w1_dataset/train|valid с _annotations.coco.json")
     args = ap.parse_args()
 
     videos = {}
@@ -181,10 +186,45 @@ def main() -> int:
         f.write(f"path: {DATASET}\ntrain: images/train\nval: images/val\n"
                 f"names: {CLASSES}\n")
     print(f"\nдатасет собран: {DATASET}")
+
+    if args.with_coco:
+        # Дерево под RF-DETR (Roboflow-конвенция): train/ и valid/ с картинками
+        # рядом и _annotations.coco.json (category_id с 1). ~15 МБ дублей картинок.
+        import json
+        H, W = cv2.imread(
+            sorted(glob.glob(os.path.join(FRAMES, "*", "*.jpg")))[0]).shape[:2]
+        cats = [{"id": i + 1, "name": n} for i, n in enumerate(CLASSES)]
+        for split, subset in (("train", "train"), ("val", "valid")):
+            outdir = os.path.join(DATASET, subset)
+            os.makedirs(outdir, exist_ok=True)
+            images, annos, imgs_n, annos_n = [], [], 1, 1
+            for (split2, _video, stem), lines in sorted(stats.items()):
+                if split2 != split:
+                    continue
+                frame = os.path.join(FRAMES, _video, stem + ".jpg")
+                if not os.path.exists(frame):
+                    continue  # уже помечено в problems_final выше
+                shutil.copy2(frame, os.path.join(outdir, stem + ".jpg"))
+                images.append({"id": imgs_n, "file_name": stem + ".jpg",
+                               "width": W, "height": H})
+                for line in lines:
+                    c, cx, cy, w, h = line.split()
+                    cx, cy, w, h = (float(x) for x in (cx, cy, w, h))
+                    px, py, pw, ph = (cx - w / 2) * W, (cy - h / 2) * H, w * W, h * H
+                    annos.append({"id": annos_n, "image_id": imgs_n,
+                                  "category_id": int(c) + 1,
+                                  "bbox": [px, py, pw, ph], "area": pw * ph,
+                                  "iscrowd": 0})
+                    annos_n += 1
+                imgs_n += 1
+            with open(os.path.join(outdir, "_annotations.coco.json"), "w") as f:
+                json.dump({"images": images, "annotations": annos,
+                           "categories": cats}, f)
+            print(f"coco/{subset}: {len(images)} картинок, {len(annos)} боксов")
     if problems_final:
         print(f"\n--- проблемы ({len(problems_final)}) ---")
         for p in problems_final[:40]:
-            print(" ", p)
+            print(" ", p.encode("ascii", "replace").decode())
         if len(problems_final) > 40:
             print(f"  ... и ещё {len(problems_final) - 40}")
     return 0

@@ -29,8 +29,14 @@ class ApiTest(unittest.TestCase):
         self.client = TestClient(main.app)
         self.addCleanup(self.client.close)
         self.headers = {"X-API-Key": "test-key"}
+        # Валидный ISO BMFF-заголовок: BE-длина 0x14 + «ftyp» + «qt  » — main.py проверяет
+        # именно bytes[4:8] == b"ftyp", иначе отвергнет как 415. Старые «test video bytes»
+        # теперь не проходят сигнатуру, и это правильно.
+        self.mov_header = b"\x00\x00\x00\x14ftypqt  "
 
-    def upload(self, name="video.mov", content=b"test video bytes"):
+    def upload(self, name="video.mov", content=None):
+        if content is None:
+            content = self.mov_header + b"\x00" * 24
         return self.client.post(
             "/api/v1/analyze",
             headers=self.headers,
@@ -105,10 +111,49 @@ class ApiTest(unittest.TestCase):
     def test_invalid_upload(self):
         self.assertEqual(self.upload("video.mov.exe").status_code, 415)
         self.assertEqual(self.upload(content=b"").status_code, 400)
-        with patch.object(main, "MAX_FILE_SIZE", 4):
-            self.assertEqual(self.upload(content=b"12345").status_code, 413)
-            self.assertEqual(self.upload(content=b"1234").status_code, 202)
+        with patch.object(main, "MAX_FILE_SIZE", 32):
+            # 64 байта (заголовок + 56 байт хвоста) — превышает лимит.
+            self.assertEqual(self.upload(content=self.mov_header + b"X" * 56).status_code, 413)
+            # 24 байта (заголовок + 16 байт хвоста) — проходит лимит, не сигнатуру.
+            self.assertEqual(self.upload(content=self.mov_header + b"\x00" * 16).status_code, 202)
         self.assertEqual(self.client.post("/api/v1/analyze", headers=self.headers).status_code, 422)
+
+    def test_version_auth(self):
+        # /version защищён тем же X-API-Key, что и остальные маршруты.
+        self.assertEqual(self.client.get("/api/v1/version").status_code, 401)
+        self.assertEqual(
+            self.client.get("/api/v1/version", headers={"X-API-Key": "wrong"}).status_code, 401
+        )
+        with patch.dict(os.environ, {"API_KEY": ""}):
+            self.assertEqual(self.client.get("/api/v1/version", headers=self.headers).status_code, 503)
+
+    def test_version_payload(self):
+        data = self.client.get("/api/v1/version", headers=self.headers).json()
+        self.assertEqual(data["service"], "forte-vision")
+        self.assertEqual(data["engine"], "pipeline.engine")
+        self.assertEqual(data["rules_count"], 10)
+        # ISO-дата в UTC: 2026-10-17T...Z, длина 20.
+        self.assertEqual(len(data["rules_version"]), 20)
+        self.assertTrue(data["rules_version"].endswith("Z"))
+        self.assertGreaterEqual(data["process_budget_sec"], 270)
+        self.assertGreaterEqual(data["worker_count"], 1)
+
+    def test_upload_signature_reject(self):
+        # .mov с правильным расширением, но без атома ftyp на offset 4.
+        response = self.upload(content=b"X" * 16)
+        self.assertEqual(response.status_code, 415)
+        self.assertIn("ftyp", response.json()["detail"])
+
+    def test_upload_signature_short_file(self):
+        # 1–7 байт: атома ftyp физически нет.
+        response = self.upload(content=b"abc")
+        self.assertEqual(response.status_code, 415)
+        self.assertIn("ftyp", response.json()["detail"])
+
+    def test_upload_signature_real_mov(self):
+        # Реальный заголовок из open/videos/Х-30.mov: BE-длина 0x14 + "ftyp" + "qt  ".
+        head = b"\x00\x00\x00\x14ftypqt  " + b"\x00" * 24
+        self.assertEqual(self.upload(content=head).status_code, 202)
 
 
 if __name__ == "__main__":

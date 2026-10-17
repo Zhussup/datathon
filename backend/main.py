@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from secrets import compare_digest
 from typing import Annotated
@@ -8,6 +9,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 import worker
+from pipeline import rules as pipeline_rules
+from pipeline.rules import RULES
 from worker import store  # noqa: F401 — tests import this to clear job state
 
 MAX_FILE_SIZE = 200 * 1024 * 1024
@@ -45,6 +48,14 @@ async def analyze(file: UploadFile):
             raise HTTPException(400, "File is empty")
         if file.size > MAX_FILE_SIZE:
             raise HTTPException(413, "File exceeds 200 MB")
+        # ISO BMFF: 4 байта BE-длины первого атома + 4 байта тип; «ftyp» всегда на offset 4.
+        # Литеральная проверка первых 4 байт отвергла бы ВСЕ реальные .mov из open/videos/
+        # (там \x00\x00\x00\x14ftypqt  ...). После read обязателен seek(0), иначе цикл
+        # записи ниже потеряет первые 8 байт.
+        head = await file.read(8)
+        await file.seek(0)
+        if len(head) < 8 or head[4:8] != b"ftyp":
+            raise HTTPException(415, "Не похоже на MOV/MP4: отсутствует атом ftyp")
 
         job_id = uuid4().hex
         dest = STORAGE_DIR / job_id / "video.mov"
@@ -67,3 +78,19 @@ def get_job(job_id: str):
     if job is None:
         raise HTTPException(404, "Job not found")
     return job
+
+
+@app.get("/api/v1/version")
+def version():
+    """Снимок сборки для жюри и приёмки: сколько правил, какой бюджет обработки."""
+    mtime = Path(pipeline_rules.__file__).stat().st_mtime
+    return {
+        "service": "forte-vision",
+        "engine": "pipeline.engine",
+        "rules_count": len(RULES),
+        "rules_version": datetime.fromtimestamp(mtime, timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z"),
+        "process_budget_sec": worker.PROCESS_BUDGET_SEC,
+        "worker_count": worker.WORKER_COUNT,
+    }

@@ -10,11 +10,13 @@ export function Verdict({
   result,
   onSeek,
   onReset,
+  onFrameOpen,
 }: {
   visible: boolean;
   result: JobResult;
   onSeek: (seconds: number) => void;
   onReset: () => void;
+  onFrameOpen?: (violationIndex: number, frameIndex: number) => void;
 }) {
   const findings = result.violations;
   const flagged = result.verdict === "violation" && findings.length > 0;
@@ -66,6 +68,9 @@ export function Verdict({
         >
           {findings.map((violation, index) => {
             const at = violation.evidence_frames[0]?.timestamp_sec ?? violation.timecode_sec;
+            const visibleFrames = violation.evidence_frames.filter(
+              (frame) => frame.image_base64,
+            );
             return (
               <button
                 key={violation.rule_id ?? index}
@@ -74,21 +79,29 @@ export function Verdict({
                 onClick={() => onSeek(at)}
                 aria-label={`Открыть эпизод ${index + 1} на ${formatTime(violation.timecode_sec)}`}
               >
-                {violation.evidence_frames.some((frame) => frame.image_base64) && (
+                {visibleFrames.length > 0 && (
                   <span className="verdict-frames" aria-hidden="true">
-                    {violation.evidence_frames
-                      .filter((frame) => frame.image_base64)
-                      .map((frame) => (
-                        <img
-                          key={frame.timestamp_sec}
-                          src={`data:image/jpeg;base64,${frame.image_base64}`}
-                          alt=""
-                          onClick={(event) => {
+                    {visibleFrames.map((frame, frameIndex) => (
+                      <img
+                        key={frame.timestamp_sec}
+                        src={`data:image/jpeg;base64,${frame.image_base64}`}
+                        alt=""
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (onFrameOpen) onFrameOpen(index, frameIndex);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
                             event.stopPropagation();
-                            onSeek(frame.timestamp_sec);
-                          }}
-                        />
-                      ))}
+                            if (onFrameOpen) onFrameOpen(index, frameIndex);
+                          }
+                        }}
+                        aria-label={`Открыть кадр на ${formatTime(frame.timestamp_sec)}`}
+                      />
+                    ))}
                   </span>
                 )}
                 <span className="moment-heading">

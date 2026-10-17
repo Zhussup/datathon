@@ -1,0 +1,7 @@
+banknotes
+money_bag
+document
+safe
+stamp
+outerwear
+terminal

@@ -1,0 +1,4 @@
+path: /home/zhus/Desktop/datathon/w1_dataset
+train: images/train
+val: images/val
+names: ['banknotes', 'money_bag', 'document', 'safe', 'stamp', 'outerwear', 'terminal']
