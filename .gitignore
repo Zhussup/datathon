@@ -1,0 +1,6 @@
+*.zip
+open/*
+!open/*.csv
+!open/*.xlsx
+strips/
+sheets/

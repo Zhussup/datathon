@@ -1,0 +1,341 @@
+<!-- Layout: протокольный драфт — моно-условия правил, зелёные/красные исходы, янтарные пометки «проверить норму» -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Дерево правил кассира</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --surface:#ffffff; --surface2:#e9ecf0; --fg:#1a2129; --dim:#5b6572;
+    --line:#d5dae1; --accent:#2b5fa8; --accent-soft:#e3ebf6;
+    --viol:#b73a22; --viol-bg:#fbe9e3; --norm:#1f7a4d; --norm-bg:#e5f3ea;
+    --warn:#7a5c00; --warn-bg:#f7efd4;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#12151a; --surface:#1a1f26; --surface2:#232a33; --fg:#e8ebef; --dim:#98a2b0;
+    --line:#2e3641; --accent:#7fa8dd; --accent-soft:#1e2c40;
+    --viol:#ff9078; --viol-bg:#3a2119; --norm:#5ccf95; --norm-bg:#16311f;
+    --warn:#e5c468; --warn-bg:#332c12; color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#12151a; --surface:#1a1f26; --surface2:#232a33; --fg:#e8ebef; --dim:#98a2b0;
+    --line:#2e3641; --accent:#7fa8dd; --accent-soft:#1e2c40;
+    --viol:#ff9078; --viol-bg:#3a2119; --norm:#5ccf95; --norm-bg:#16311f;
+    --warn:#e5c468; --warn-bg:#332c12; color-scheme:dark;
+  }
+  body{
+    background:var(--bg); color:var(--fg);
+    font:15px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));
+    padding-right:max(16px, env(safe-area-inset-right, 0px));
+    padding-block:16px 40px; max-width:980px; margin:0 auto;
+  }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, "DejaVu Sans Mono", monospace; }
+  a{ color:var(--accent); }
+  h1,h2,h3{ font-family:"Unbounded", "IBM Plex Sans", sans-serif; text-wrap:balance; margin:0; }
+  h2{ font-size:19px; margin-bottom:6px; }
+  .eyebrow{ color:var(--dim); font-size:12px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px; }
+  .lead{ max-width:70ch; color:var(--dim); margin:12px 0 0; }
+  section{ margin-top:44px; }
+  .secnote{ color:var(--dim); font-size:14px; max-width:74ch; margin:0 0 18px; }
+
+  /* --- figure / pipeline --- */
+  .figwrap{ overflow-x:auto; margin:0; }
+  figure{ margin:0; }
+  figcaption{ color:var(--dim); font-size:13px; margin-top:8px; }
+  svg{ display:block; max-width:100%; height:auto; }
+  .nd{ fill:var(--surface2); stroke:var(--line); }
+  .nd-main{ fill:var(--accent-soft); stroke:var(--accent); }
+  .nd-opt{ fill:none; stroke:var(--dim); stroke-dasharray:5 4; }
+  .ed{ stroke:var(--line); fill:none; marker-end:url(#ah); }
+  .lbl{ fill:var(--dim); font:12px "IBM Plex Sans", sans-serif; }
+  .ttl{ fill:var(--fg); font:600 13px "IBM Plex Sans", sans-serif; }
+
+  /* --- эталонная цепочка --- */
+  .chain{ display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; }
+  .chip{ background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:7px 11px; font-size:13.5px; }
+  .chip small{ color:var(--dim); display:block; font-size:11px; }
+  .arrow{ align-self:center; color:var(--dim); font-size:15px; }
+
+  /* --- словарь примитивов --- */
+  .vocab{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:12px; }
+  .vgroup{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .vgroup h3{ font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); font-family:"IBM Plex Sans", sans-serif; margin-bottom:9px; }
+  .tagset{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tag{ font-family:"IBM Plex Mono", monospace; font-size:12.5px; border:1px solid var(--line); border-radius:7px; padding:3px 8px; background:var(--surface2); }
+  .tag.ev{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .tag.st{ border-color:var(--warn); color:var(--warn); background:var(--warn-bg); }
+  .tag.ob{ color:var(--dim); }
+
+  /* --- карточки правил --- */
+  .rules{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:12px; }
+  .rule{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px 13px; display:flex; flex-direction:column; gap:10px; }
+  .rhead{ display:flex; align-items:center; gap:9px; }
+  .rid{ font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:700; color:var(--bg); background:var(--accent); border-radius:7px; padding:3px 7px; }
+  .rname{ font-weight:600; font-size:15px; }
+  .trig{ font-family:"IBM Plex Mono", monospace; font-size:12.5px; color:var(--fg); border-left:3px solid var(--accent); background:var(--surface2); border-radius:0 8px 8px 0; padding:7px 10px; }
+  .trig b{ color:var(--accent); font-weight:700; }
+  .q{ font-size:14px; }
+  .q::before{ content:"?"; color:var(--dim); font-weight:700; margin-right:7px; }
+  .fork{ display:flex; flex-wrap:wrap; gap:8px; }
+  .pill{ border-radius:8px; padding:6px 11px; font-size:13.5px; line-height:1.35; flex:1 1 200px; }
+  .pill small{ display:block; font-size:11.5px; opacity:.85; }
+  .pv{ background:var(--viol-bg); color:var(--viol); border:1px solid color-mix(in srgb, var(--viol) 35%, transparent); }
+  .pn{ background:var(--norm-bg); color:var(--norm); border:1px solid color-mix(in srgb, var(--norm) 35%, transparent); }
+  .pmeta{ display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; font-size:12px; color:var(--dim); }
+  .exs{ font-family:"IBM Plex Mono", monospace; font-size:11.5px; }
+  .chk{ color:var(--warn); background:var(--warn-bg); border-radius:6px; padding:2px 8px; }
+
+  /* --- таблицы --- */
+  .tblwrap{ overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
+  table{ border-collapse:collapse; width:100%; min-width:560px; font-size:14px; }
+  th{ text-align:left; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface); white-space:nowrap; }
+  td{ padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:0; }
+  td .mono{ font-size:12.5px; }
+  .ok{ color:var(--norm); } .todo{ color:var(--warn); }
+
+  /* --- guard rails --- */
+  .guards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:12px; }
+  .gcard{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 15px; font-size:14px; }
+  .gcard b{ display:block; margin-bottom:5px; font-size:14.5px; }
+  footer{ margin-top:52px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:14px; }
+</style>
+
+<h1>Дерево правил кассира</h1>
+<p class="eyebrow">ForteBank · драфт архитектуры · версия для команды</p>
+<p class="lead">Логику нарушения держит не нейросеть, а детерминированное дерево: модель видит только примитивные
+факты (кто в кадре, что на столе, закрыт ли сейф), а правила проверяют <b>порядок</b> этих фактов во времени.
+Каждое срабатывание превращается в тип, таймкод, кадр и пункт нормативки — без выдумок.</p>
+
+<section>
+  <h2>Пайплайн</h2>
+  <div class="figwrap"><figure>
+    <svg viewBox="0 0 920 268" role="img" aria-label="Пайплайн: видео проходит детекцию и трекинг, превращается в таблицу фактов, дерево правил выдаёт события и вердикт; опционально спорные кадры уточняет локальный VLM">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><polygon points="0 0, 10 5, 0 10" fill="var(--dim, #5b6572)"/></marker></defs>
+      <!-- row 1 -->
+      <rect class="nd" x="16"  y="22" width="170" height="52" rx="10"/>
+      <text class="ttl" x="101" y="43" text-anchor="middle">видео .mov</text>
+      <text class="lbl" x="101" y="61" text-anchor="middle">5 кадров/с</text>
+
+      <rect class="nd-main" x="226" y="22" width="208" height="52" rx="10"/>
+      <text class="ttl" x="330" y="43" text-anchor="middle">YOLO: объекты + люди</text>
+      <text class="lbl" x="330" y="61" text-anchor="middle">деньги, сейф, паспорт, мешок…</text>
+
+      <rect class="nd" x="474" y="22" width="180" height="52" rx="10"/>
+      <text class="ttl" x="564" y="43" text-anchor="middle">трекинг</text>
+      <text class="lbl" x="564" y="61" text-anchor="middle">кассир / клиенты / прочие</text>
+
+      <rect class="nd-main" x="694" y="22" width="210" height="52" rx="10"/>
+      <text class="ttl" x="799" y="43" text-anchor="middle">факты по секундам</text>
+      <text class="lbl" x="799" y="61" text-anchor="middle">события · состояния · объекты</text>
+
+      <line class="ed" x1="186" y1="48" x2="220" y2="48"/>
+      <line class="ed" x1="434" y1="48" x2="468" y2="48"/>
+      <line class="ed" x1="654" y1="48" x2="688" y2="48"/>
+
+      <!-- row 2 -->
+      <rect class="nd-opt" x="16" y="168" width="252" height="66" rx="10"/>
+      <text class="ttl" x="142" y="194" text-anchor="middle">VLM-верификация (опция)</text>
+      <text class="lbl" x="142" y="212" text-anchor="middle">Qwen2.5-VL локально: спорные кадры</text>
+
+      <rect class="nd-main" x="368" y="168" width="200" height="66" rx="10"/>
+      <text class="ttl" x="468" y="196" text-anchor="middle">дерево правил</text>
+      <text class="lbl" x="468" y="214" text-anchor="middle">порядок и окна, 10 правил</text>
+
+      <rect class="nd" x="652" y="168" width="252" height="66" rx="10"/>
+      <text class="ttl" x="778" y="190" text-anchor="middle">вердикт + события</text>
+      <text class="lbl" x="778" y="208" text-anchor="middle">тип · таймкод · кадры · пункт НПА</text>
+
+      <line class="ed" x1="799" y1="74" x2="799" y2="96" />
+      <line class="ed" x1="799" y1="96" x2="468" y2="96" />
+      <line class="ed" x1="468" y1="96" x2="468" y2="162"/>
+      <text class="lbl" x="620" y="90" text-anchor="middle">таблица фактов</text>
+
+      <line class="ed" x1="268" y1="201" x2="362" y2="201"/>
+      <text class="lbl" x="315" y="190" text-anchor="middle">уточнённые</text>
+      <text class="lbl" x="315" y="204" text-anchor="middle">факты</text>
+
+      <line class="ed" x1="568" y1="201" x2="646" y2="201"/>
+      <text class="lbl" x="607" y="190" text-anchor="middle">срабатывания</text>
+    </svg>
+    <figcaption>Нейросеть отвечает только за «что видно». Вердикт выносит дерево правил — его можно править, не переобучая модель.</figcaption>
+  </figure></div>
+</section>
+
+<section>
+  <h2>Эталонная последовательность («норма»)</h2>
+  <p class="secnote">Чистые видео повторяют один сценарий. Правило-нарушение почти всегда — «порядок нарушен: шаг пропущен, укорочен или выполнен не вовремя». Значит, фиксируем канон и следим за отклонениями.</p>
+  <div class="chain">
+    <span class="chip">клиент подаёт документ<small> п. 19 пп. 1: визуальная идентификация</small></span><span class="arrow">→</span>
+      <span class="chip">кассир проверяет<small> идентификация + подписи (п. 19 пп. 1, 3); осмотр «в руках» не обязателен</small></span><span class="arrow">→</span>
+    <span class="chip">приём денег<small> на стол / в руки</small></span><span class="arrow">→</span>
+    <span class="chip">пересчёт и проверка подлинности<small>п. 19: полистный пересчёт; способ (аппарат) не фиксируется</small></span><span class="arrow">→</span>
+    <span class="chip">оформление операции<small>п. 19: подпись, штамп, подтверждающий документ</small></span><span class="arrow">→</span>
+    <span class="chip">хранение в запирающемся устройстве<small>п. 20 абз. 2: устройство на ключ на рабочем месте; «на глазах» не требуется</small></span><span class="arrow">→</span>
+    <span class="chip">выдача и закрытие<small> возврат, сейф закрыт, ключ снят</small></span>
+  </div>
+</section>
+
+<section>
+  <h2>Словарь примитивов</h2>
+  <p class="secnote">Единственный язык, на котором правила разговаривают. Перцепция (детектор + трекинг + опциональный VLM) должна научиться выдавать ровно эти факты по каждой секунде.
+  <b>Пересчёт (count_start) — это манипуляция кассира с купюрами</b> (руки, стопки, листание), а не «встал за аппарат»:
+  счётный аппарат часто не попадает в кадр — и это не блокирует факт, п. 19 требует пересчёт, а не способ (аппарат).</p>
+  <div class="vocab">
+    <div class="vgroup"><h3>События</h3>
+      <div class="tagset"><span class="tag ev">doc_check(t)</span><span class="tag ev">money_handover(t)</span>
+      <span class="tag ev">count_start(t)</span><span class="tag ev">data_entry(t)</span><span class="tag ev">money_to_safe(t)</span>
+      <span class="tag ev">visit_end(t)</span><span class="tag ev">walk_away(t)</span><span class="tag ev">person_enter(t)</span></div>
+    </div>
+    <div class="vgroup"><h3>Состояния</h3>
+      <div class="tagset"><span class="tag st">cashier_away</span><span class="tag st">client_present</span><span class="tag st">safe_open</span>
+      <span class="tag st">key_in_lock</span><span class="tag st">door_open</span><span class="tag st">counter_busy</span><span class="tag st">screen_open</span></div>
+    </div>
+    <div class="vgroup"><h3>Объекты на столе</h3>
+      <div class="tagset"><span class="tag ob">banknotes</span><span class="tag ob">money_bag</span><span class="tag ob">document</span>
+      <span class="tag ob">stamp</span><span class="tag ob">cup</span><span class="tag ob">outerwear</span><span class="tag ob">phone</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Десять правил</h2>
+  <p class="secnote">Каждая карточка — одно правило: триггер, единственный вопрос о контексте и два исхода. Пороги и окна — черновые, калибруем на чистых видео.</p>
+  <div class="rules">
+
+    <div class="rule"><div class="rhead"><span class="rid">R1</span><span class="rname">Документ раньше денег</span></div>
+      <div class="trig">trigger: <b>money_handover(t)</b></div>
+      <div class="q">найден doc_check в окне [t−45 c, t]?</div>
+      <div class="fork"><span class="pill pn">норма<small>документ есть — порядок соблюдён</small></span>
+      <span class="pill pv">приём денег без проверки документа<small>порядок действий нарушен</small></span></div>
+      <div class="pmeta"><span class="exs">X-2 @10 · Х-17 @7</span><span>норма: Х-3, Х-5</span><span class="ok">п. 19 пп. 1 Правил № 231 ✓ (выдача: п. 31 пп. 1)</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R2</span><span class="rname">Безнадзорные ценности</span></div>
+      <div class="trig">trigger: <b>banknotes|money_bag on desk &amp; cashier_away</b></div>
+      <div class="q">пересечение длится ≥ 5 c непрерывно?</div>
+      <div class="fork"><span class="pill pn">норма<small>короткий поворот к ПК — не считаем</small></span>
+      <span class="pill pv">деньги на столе в отсутствие кассира<small>хранение ранее принятых денег</small></span></div>
+      <div class="pmeta"><span class="exs">Х-15 @15 · Х-26 @9 · Х-38 @33 · Х-47 @63–70</span><span class="ok">п. 20 абз. 2 Правил № 231: ранее принятые — под ключ ✓</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R3</span><span class="rname">Сейф при уходе</span></div>
+      <div class="trig">trigger: <b>walk_away(t)</b></div>
+      <div class="q">в момент ухода safe_open или key_in_lock?</div>
+      <div class="fork"><span class="pill pn">норма<small>закрыл, ключ снял — как Х-12</small></span>
+      <span class="pill pv">сейф не закрыт / ключ оставлен<small>доступ к ценностям без контроля</small></span></div>
+      <div class="pmeta"><span class="exs">Х-11 @18 · Х-20 @5</span><span>норма: Х-12, Х-21</span><span class="ok">п. 20, п. 76 Правил № 231 ✓</span><span class="chk">п. 16 Правил № 14 — ред. от 24.12.2024</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R4</span><span class="rname">Деньги не вернулись клиенту</span></div>
+      <div class="trig">trigger: <b>visit_end(t)</b></div>
+      <div class="q">после ухода клиента money остаётся у кассира?</div>
+      <div class="fork"><span class="pill pn">норма<small>выдача состоялась до конца визита</small></span>
+      <span class="pill pv">деньги клиента не выданы<small>остаток / не отданы / не возвращены</small></span></div>
+      <div class="pmeta"><span class="exs">X-1 @22 · Х-4 @57</span><span class="chk">требует VLM: куда ушла пачка</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R5</span><span class="rname">Два клиента сразу</span></div>
+      <div class="trig">trigger: <b>client_count ≥ 2</b></div>
+      <div class="q">два клиента в кадре ≥ 2 c непрерывно?</div>
+      <div class="fork"><span class="pill pn">норма<small>один в зале, другой мимо прошёл</small></span>
+      <span class="pill pv">обслуживание двух клиентов одновременно<small>обязан строго по одному</small></span></div>
+      <div class="pmeta"><span class="exs">Х-18 @20</span><span class="ok">п. 22 Правил № 231 — трактовка</span><span class="chk">требует порог по «в обслуживании»</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R6</span><span class="rname">Пересчёт в отсутствие клиента</span></div>
+      <div class="trig">trigger: <b>count_start(t)</b></div>
+      <div class="q">клиент отсутствует в окне [t, t+5 c]?</div>
+      <div class="fork"><span class="pill pn">норма<small>пересчёт в присутствии клиента</small></span>
+      <span class="pill pv">пересчёт после ухода клиента<small>деньги считаются при клиенте</small></span></div>
+      <div class="pmeta"><span class="exs">Х-34 @13</span><span class="ok">п. 20 абз. 1 Правил № 231: пересчёт в присутствии клиента ✓</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R7</span><span class="rname">Личные вещи на кассовом столе</span></div>
+      <div class="trig">trigger: <b>outerwear|bag on desk</b></div>
+      <div class="q">лежит ≥ 10 c?</div>
+      <div class="fork"><span class="pill pn">норма<small>зацепился на секунду, снял</small></span>
+      <span class="pill pv">личные вещи в кассовом узле<small>хранение вне узла обязательно</small></span></div>
+      <div class="pmeta"><span class="exs">Х-40 @17</span><span class="ok">п. 12 Правил № 231: личные вещи вне кассового узла ✓</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R8</span><span class="rname">Рабочее место</span></div>
+      <div class="trig">trigger: <b>cup→рот | stamp on desk &amp; away | screen_open &amp; away</b></div>
+      <div class="q">одно из трёх состояний зафиксировано?</div>
+      <div class="fork"><span class="pill pn">норма<small>ничего из перечисленного</small></span>
+      <span class="pill pv">нарушение порядка рабочего места<small>напиток / штампы / открытый экран при уходе</small></span></div>
+      <div class="pmeta"><span class="exs">Х-24 @8 · Х-28 @7 · Х-46 @11</span><span class="ok">п. 12 ред. № 71 (10.11.2025): внос в узел — только связь без фото/видео</span><span class="chk">п. 80: штампы — внутр. документы; напиток/экран: прямого запрета нет</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R9</span><span class="rname">Дверь и посторонние</span></div>
+      <div class="trig">trigger: <b>door_open(t) | person_enter(t)</b></div>
+      <div class="q">входит посторонний, пока дверь открыта?</div>
+      <div class="fork"><span class="pill pn">норма<small>незначительное перемещение</small></span>
+      <span class="pill pv">кассовая зона не закрыта<small>дверь открыта / посторонний входит</small></span></div>
+      <div class="pmeta"><span class="exs">Х-30 @13 · Х-32 @5 · Х-33 @6</span><span class="ok">п. 8, п. 16 Правил № 14: закрывающийся вход ✓</span><span class="chk">требует порог «кто в кадре»</span></div>
+    </div>
+
+    <div class="rule"><div class="rhead"><span class="rid">R10</span><span class="rname">Приём без пересчёта и оформления</span></div>
+      <div class="trig">trigger: <b>money_handover(t) → money_to_safe(t*)</b></div>
+      <div class="q">между приёмом и укладкой на хранение найдены count_start и оформление?</div>
+      <div class="fork"><span class="pill pn">норма<small>пересчёт есть, документы оформлены</small></span>
+      <span class="pill pv">деньги приняты без пересчёта и оформления<small>пересчёт/проверка подлинности пропущены</small></span></div>
+      <div class="pmeta"><span class="exs">Х-13 @47</span><span>норма: Х-14, Х-5</span><span class="ok">п. 19 Правил № 231 (ред. 28.02.2022 № 19) ✓</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Крутящие ручки</h2>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Параметр</th><th>Черновое значение</th><th>Зачем</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">окно поиска doc_check</td><td class="mono">45 c до money_handover</td><td>не ловим «документ был 10 минут назад» и наоборот</td></tr>
+      <tr><td class="mono">streak безнадзорности</td><td class="mono">≥ 5 c</td><td>пересадки позы кассира за ПК не считаются уходом</td></tr>
+      <tr><td class="mono">медиум «2 клиента»</td><td class="mono">≥ 2 c в одном кадре</td><td>мимолётная встреча двух людей — не приём</td></tr>
+      <tr><td class="mono">личные вещи</td><td class="mono">≥ 10 c на столе</td><td>мелкие касания не считаются</td></tr>
+      <tr><td class="mono">порог уверенности τ</td><td class="mono">выбирается так, чтобы 20 чистых видео давали 0 ложных</td><td>ложных срабатываний по ТЗ — как можно меньше</td></tr>
+      <tr><td class="mono">кадры на событие</td><td class="mono">1–3 кадра (момент, ±0.5 c)</td><td>человек должен подтвердить вывод глазом</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Ограждения</h2>
+  <div class="guards">
+    <div class="gcard"><b>Что НЕ считаем нарушением</b>
+    Деньги на столе при кассире на месте (идет пересчёт); закрытый сейф при уходе; один клиент; документ на столе во время приёма; мимолётные фигуры на заднем плане — пока триггер не сработал, вердикта нет.</div>
+    <div class="gcard"><b>Не молчим, если примитивы сработали, а правила нет</b>
+    Известный риск кейса: тип нарушения, не похожий ни на одно из 10 правил. Тогда событие уходит в тип «требует проверки» с кадром — вердикт честный, пропуск не теряем.</div>
+    <div class="gcard"><b>Не утверждаем невидимого</b>
+    Если для вывода нужен невидимый контекст (перевод со счёта, сверка), описываем только факт в кадре («пачка ушла во второй ящик без документально видимого действия») без категоричных формулировок.</div>
+    <div class="gcard"><b>Несколько событий на видео</b>
+    Х-4/Х-47 доказали: в одном видео бывает два события. Результат всегда — список events[], а не один таймкод.</div>
+    <div class="gcard"><b>Другой ракурс финального видео</b>
+    Правила не привязаны к пиксельным координатам — только к найденным объектам и их трекам, чтобы сработать и на сдвинутую камеру.</div>
+    <div class="gcard"><b>Чего не делаем по правилам кейса</b>
+    Никаких лиц (не распознаём и не идентифицируем), никакого аудио, никаких облачных сервисов, никаких «стопудово кража» без видимого подтверждения.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Нормативная привязка</h2>
+  <p class="secnote">Сверено по полному тексту: Пост. Правления НБ РК от 29.11.2019 <b>№ 231</b> «Правила осуществления кассовых операций…» (adilet: <b>V1900019680</b>; редакция на 12.07.2026 — изменения № 71 от 10.11.2025, № 25 от 16.03.2026, № 78 от 30.06.2026) и от 24.02.2020 <b>№ 14</b> «Правила организации охраны и устройства помещений…» (V2000020075; ред. от 24.12.2024 № 88). Цитаты и точные номера — <a href="law.md">law.md</a>. Перед питчем — повторная сверка на adilet.zan.kz; старые Правила № 58 (2001) не цитируем — утратили силу.</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>Правило</th><th>Возможная привязка</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td>R1 · проверка документа</td><td>Правила № 231 (V1900019680), п. 19 (ред. от 28.02.2022 № 19, изменён от 10.11.2025 № 71 — идентификация и по цифровым документам), пп. 1: «проводит визуальную идентификацию клиента… с документом, удостоверяющим его личность»; при выдаче — п. 31 пп. 1</td><td class="ok">подтверждено</td></tr>
+      <tr><td>R2 · безнадзорные ценности</td><td>Правила № 231, п. 20, абз. 2: ранее принятые наличные «хранятся в специальных устройствах… закрывающихся на ключ»</td><td class="ok">подтверждено</td></tr>
+      <tr><td>R3 · сейф и ключ</td><td>Правила № 231: п. 20 (устройства на ключ) + п. 76 («ключи… от двери кладовой и (или) сейфовой комнаты… хранятся у лиц, ответственных за сохранность»); устройства помещений — Правила № 14, п. 8, п. 16</td><td class="ok">подтверждено · № 14 ред. 24.12.2024</td></tr>
+      <tr><td>R4 · деньги не вернулись клиенту</td><td>открытого пункта нет; контекст — п. 35 (клиент пересчитывает «не отходя от кассы»). Подаём только видимый факт, без правовых утверждений (раздел 7 ТЗ)</td><td class="chk">честная оговорка · VLM</td></tr>
+      <tr><td>R5 · два клиента</td><td>прямой нормы нет; трактовка через п. 22 («не допускается покидать рабочее место до окончания обслуживания клиента») — черновая, показать как признак</td><td class="chk">трактовка — подтвердить</td></tr>
+      <tr><td>R6 · пересчёт при клиенте</td><td>Правила № 231, п. 20, абз. 1: «принимаются и пересчитываются кассовым работником в присутствии клиента»</td><td class="ok">подтверждено</td></tr>
+      <tr><td>R7 · личные вещи</td><td>Правила № 231, п. 12: «Хранение личных вещей, наличных денег и ценностей работников банка осуществляется вне кассового узла»</td><td class="ok">подтверждено</td></tr>
+      <tr><td>R8 · штампы / напиток / экран</td><td>п. 80: порядок хранения именных штампов и ключей — внутренние документы банка; запрет напитка/открытого экрана в открытых актах не найден → тип «признак», без правовых утверждений</td><td class="chk">честная оговорка</td></tr>
+      <tr><td>R9 · дверь / доступ</td><td>Правила № 14 (V2000020075): п. 8 — кассовый узел «одним закрывающимся служебным входом»; п. 16, пп. 1 — «каждая касса… закрывающейся на замок дверью» (в ред. Пост. № 88 от 24.12.2024); п. 75 № 231 — вход в кладовую/сейфовую только ответственным</td><td class="ok">подтверждено · ред. № 88</td></tr>
+      <tr><td>R10 · приём без пересчёта/оформления</td><td>Правила № 231, п. 19 (в ред. № 19 от 28.02.2022): полистный пересчёт, проверка подлинности/платёжности, подпись, штамп, подтверждающий документ; хранение — п. 20</td><td class="ok">подтверждено</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>Драфт от Жуса, 17.10.2026; нормативка сверена по <a href="law.md">law.md</a>. Окна и пороги — рабочие гипотезы, калибруются по чистым
+видео. Ключевые пункты № 231 (ред. на 12.07.2026) / № 14 подтверждены по тексту (критерий «обоснованность правил» — 15 б.);
+у R4, R5 и частей R8 прямого пункта нет — подаём как «признак», без выдуманных ссылок.</footer>
