@@ -3,8 +3,11 @@ import type { DragEvent } from "react";
 import { Icon } from "./Icon";
 import { LoadingMark } from "./LoadingMark";
 import { DemoVerdict } from "./DemoVerdict";
+import { Verdict } from "./Verdict";
 import { formatTime, validateVideo } from "./video";
 import { finishTransition, transition } from "./motion";
+import { apiOptions, awaitJob, uploadForAnalysis } from "./api";
+import type { ApiOptions, Job, JobResult } from "./api";
 
 type Stage =
   | "idle"
@@ -17,6 +20,7 @@ type Stage =
   | "ready"
   | "error";
 type Theme = "light" | "dark";
+type ApiState = "off" | "pending" | "live";
 
 const statusCopy = {
   opening: {
@@ -48,6 +52,18 @@ const statusCopy = {
   },
 } as const;
 
+// Для реального запуска описания шагов другие: не демо, а локальный анализ.
+const liveStageCopy = {
+  checking: {
+    label: "ШАГ 02 / ИИ · АНАЛИЗ",
+    description: "Локальный анализ записи. Пока можно посмотреть запись слева.",
+  },
+  ready: {
+    label: "ШАГ 03 / ВЕРДИКТ",
+    description: "Анализ завершён. Откройте отмеченный фрагмент для просмотра.",
+  },
+} as const;
+
 export default function App() {
   const [theme, setTheme] = useState<Theme>(() =>
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
@@ -60,9 +76,15 @@ export default function App() {
   const [prepared, setPrepared] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [apiState, setApiState] = useState<ApiState>("off");
+  const [jobId, setJobId] = useState("");
+  const [result, setResult] = useState<JobResult | null>(null);
+  const [failReason, setFailReason] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const openingStarted = useRef(0);
+  const uploadEpoch = useRef(0);
+  const pollAbort = useRef<AbortController | null>(null);
   const split =
     stage === "checking" ||
     stage === "check-finishing" ||
@@ -100,14 +122,15 @@ export default function App() {
   }, [file]);
 
   useEffect(() => {
-    if (
-      stage !== "opening" &&
+    if (stage !== "opening" &&
       stage !== "uploaded" &&
       stage !== "checking-intro" &&
       stage !== "checking"
     )
       return;
     if (stage === "opening" && !prepared) return;
+    // Реальная проверка не ограничена демо-таймером — ждём ответ воркера.
+    if (stage === "checking" && apiState !== "off") return;
     // Only the checking phase is a demo; opening waits for a decoded frame.
     const timer = window.setTimeout(
       () =>
@@ -137,7 +160,7 @@ export default function App() {
             : 4200,
     );
     return () => window.clearTimeout(timer);
-  }, [stage, file, prepared, videoError]);
+  }, [stage, file, prepared, videoError, apiState]);
 
   useEffect(() => {
     if (stage !== "opening") return;
@@ -156,14 +179,69 @@ export default function App() {
     setError(message);
     if (message) return;
     openingStarted.current = performance.now();
+    const opts = apiOptions();
     transition(() => {
       setFile(next);
       setStage("opening");
       setVideoError(false);
       setPrepared(false);
       setDuration(0);
+      setJobId("");
+      setResult(null);
+      setFailReason("");
+      setApiState(opts ? "pending" : "off");
     });
+    if (opts) void startUpload(next, opts);
   }
+
+  // Файл уходит в локальный сервис сразу при выборе; пока он едет, интерфейс
+  // живёт своей хореографией. Если сервис недоступен — тихо переходим в демо.
+  async function startUpload(uploading: File, opts: ApiOptions) {
+    const epoch = uploadEpoch.current;
+    try {
+      const id = await uploadForAnalysis(uploading, opts);
+      if (uploadEpoch.current !== epoch) return;
+      setJobId(id);
+      setApiState("live");
+    } catch {
+      if (uploadEpoch.current !== epoch) return;
+      setApiState("off");
+    }
+  }
+
+  useEffect(() => {
+    if (stage !== "checking" || apiState !== "live" || !jobId) return;
+    const opts = apiOptions();
+    if (!opts) return;
+    const controller = new AbortController();
+    pollAbort.current = controller;
+    let cancelled = false;
+    awaitJob(jobId, opts, controller.signal)
+      .then((job: Job) => {
+        if (cancelled) return;
+        if (job.status === "done" && job.verdict) {
+          setResult({ verdict: job.verdict, violations: job.violations ?? [] });
+          transition(() => setStage("check-finishing"));
+        } else {
+          transition(() => {
+            setFailReason(job.error || "Проверка не удалась.");
+            setStage("error");
+          });
+        }
+      })
+      .catch((caught: unknown) => {
+        const reason = caught instanceof Error ? caught : undefined;
+        if (cancelled || reason?.name === "AbortError") return;
+        transition(() => {
+          setFailReason(reason?.message || "Сервис недоступен.");
+          setStage("error");
+        });
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [stage, apiState, jobId]);
 
   function openPicker() {
     finishTransition();
@@ -172,12 +250,36 @@ export default function App() {
 
   function reset() {
     transition(() => {
+      uploadEpoch.current += 1;
+      pollAbort.current?.abort();
       setFile(null);
       setStage("idle");
       setError("");
       setVideoError(false);
       setPrepared(false);
       setDuration(0);
+      setJobId("");
+      setResult(null);
+      setFailReason("");
+      setApiState("off");
+    });
+  }
+
+  // Тексты этапов: при ошибке обработки показываем причину, при живом анализе — не демо.
+  function stageText(stageName: string, field: "label" | "description", fallback: string) {
+    if (stageName === "error" && failReason) return failReason;
+    return liveStageCopy[stageName as keyof typeof liveStageCopy]?.[field] ?? fallback;
+  }
+
+  function seekTo(seconds: number) {
+    if (!video.current) return;
+    video.current.currentTime = seconds;
+    video.current.scrollIntoView({
+      block: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)")
+        .matches
+        ? "instant"
+        : "smooth",
     });
   }
 
@@ -411,13 +513,17 @@ export default function App() {
                         data-active={textStage === copyStage}
                         aria-hidden={textStage !== copyStage}
                       >
-                        <span className="eyebrow">{copy.label}</span>
+                        <span className="eyebrow">
+                          {stageText(textStage, "label", copy.label)}
+                        </span>
                         <h2>
                           {copy.title[0]}
                           <br />
                           <span>{copy.title[1]}</span>
                         </h2>
-                        <p className="status-description">{copy.description}</p>
+                        <p className="status-description">
+                          {stageText(textStage, "description", copy.description)}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -491,23 +597,23 @@ export default function App() {
                     </span>
                   </button>
                 </div>
-                <DemoVerdict
-                  key={url}
-                  visible={stage === "ready"}
-                  duration={duration}
-                  onReset={reset}
-                  onSeek={(seconds) => {
-                    if (!video.current) return;
-                    video.current.currentTime = seconds;
-                    video.current.scrollIntoView({
-                      block: "center",
-                      behavior: matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? "instant"
-                        : "smooth",
-                    });
-                  }}
-                />
+                {result ? (
+                  <Verdict
+                    key={url}
+                    visible={stage === "ready"}
+                    result={result}
+                    onReset={reset}
+                    onSeek={seekTo}
+                  />
+                ) : (
+                  <DemoVerdict
+                    key={url}
+                    visible={stage === "ready"}
+                    duration={duration}
+                    onReset={reset}
+                    onSeek={seekTo}
+                  />
+                )}
               </div>
             </div>
             {error && (
@@ -527,7 +633,7 @@ export default function App() {
         </span>
         <span className="footer-demo">
           <span className="status-dot" />
-          Демонстрация интерфейса
+          {result ? "Локальный анализ записи" : "Демонстрация интерфейса"}
         </span>
         <span className="footer-edition">
           FORTE VISION<span>2026</span>

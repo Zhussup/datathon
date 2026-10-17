@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 import worker
 from worker import store  # noqa: F401 — tests import this to clear job state
@@ -25,6 +26,14 @@ def check_api_key(x_api_key: Annotated[str | None, Header()] = None):
 
 
 app = FastAPI(title="Forte Vision API", dependencies=[Depends(check_api_key)])
+
+# Фронт может лежать на другом порту/хосте; ключ всё равно проверяет заголовок.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key"],
+)
 
 
 @app.post("/api/v1/analyze", status_code=202)

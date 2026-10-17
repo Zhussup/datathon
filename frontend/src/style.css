@@ -1535,3 +1535,25 @@ p {
     scroll-behavior: auto !important;
   }
 }
+
+/* Вердикт реального анализа: миниатюры кадров-доказательств, пункт НПА. */
+.verdict-frames {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.verdict-frames img {
+  display: block;
+  width: 66px;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  cursor: zoom-in;
+}
+
+.verdict-npa {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}

@@ -4,3 +4,8 @@ open/*
 !open/*.xlsx
 strips/
 sheets/
+
+w1_frames/
+w1_pack/
+w1_preds/
+venv-det/
