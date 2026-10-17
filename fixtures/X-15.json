@@ -1,0 +1,15 @@
+{
+  "video": "Х-15",
+  "duration": 30,
+  "intervals": {
+    "client_present": [[0, 10]],
+    "money_bag_on_desk": [[8, 25]],
+    "cashier_away": [[15, 25]]
+  },
+  "events": {
+    "doc_check": [4],
+    "money_handover": [8]
+  },
+  "expect": {"verdict": "violation", "rule_ids": ["R2"]},
+  "note": "Х-15 @15: мешок с деньгами на столе, кассир отходит. Клиент ушёл раньше (@10), пересчёта не было — R4 подавлен гейтом «нет count_start в сессии», прав на Х-15 только R2 @15 (стрик началом = официальный таймкод)."
+}

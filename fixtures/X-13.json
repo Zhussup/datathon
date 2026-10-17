@@ -1,0 +1,16 @@
+{
+  "video": "Х-13",
+  "duration": 60,
+  "intervals": {
+    "client_present": [[2, 50]],
+    "banknotes_on_desk": [[10, 15]],
+    "safe_open": [[12, 40]]
+  },
+  "events": {
+    "doc_check": [5],
+    "money_handover": [10],
+    "money_to_safe": [12]
+  },
+  "expect": {"verdict": "violation", "rule_ids": ["R10"]},
+  "note": "Х-13 (официально @47): принят пакет, сразу в сейф без пересчёта и оформления. В фикстуре укладка на @12 — проверяем факт срабатывания, не совпадение таймкода."
+}

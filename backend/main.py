@@ -6,9 +6,14 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, UploadFile
 
+import worker
+from worker import store  # noqa: F401 — tests import this to clear job state
+
 MAX_FILE_SIZE = 200 * 1024 * 1024
-# ponytail: jobs live in one process and reset on restart; add storage with real analysis.
-jobs: dict[str, dict] = {}
+# ponytail: one dir per upload, keep files for manual inspection; add cleanup when it grows.
+STORAGE_DIR = Path(os.environ.get("STORAGE_DIR", Path(__file__).parent / "storage"))
+
+worker.start_background()
 
 
 def check_api_key(x_api_key: Annotated[str | None, Header()] = None):
@@ -33,12 +38,15 @@ async def analyze(file: UploadFile):
             raise HTTPException(413, "File exceeds 200 MB")
 
         job_id = uuid4().hex
-        # No model yet: report failure instead of inventing an analysis result.
-        jobs[job_id] = {
-            "job_id": job_id,
-            "status": "failed",
-            "error": "Analysis model is not configured",
-        }
+        dest = STORAGE_DIR / job_id / "video.mov"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with dest.open("wb") as out:
+                while (chunk := await file.read(1 << 20)):
+                    out.write(chunk)
+        except OSError:
+            raise HTTPException(500, "Could not store uploaded file")
+        worker.submit(job_id, dest)
         return {"job_id": job_id}
     finally:
         await file.close()
@@ -46,6 +54,7 @@ async def analyze(file: UploadFile):
 
 @app.get("/api/v1/jobs/{job_id}")
 def get_job(job_id: str):
-    if job_id not in jobs:
+    job = store.public(job_id)
+    if job is None:
         raise HTTPException(404, "Job not found")
-    return jobs[job_id]
+    return job

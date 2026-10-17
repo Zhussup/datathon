@@ -1,0 +1,15 @@
+{
+  "video": "Х-34",
+  "duration": 25,
+  "intervals": {
+    "client_present": [[0, 10]],
+    "banknotes_on_desk": [[5, 20]]
+  },
+  "events": {
+    "doc_check": [3],
+    "money_handover": [5],
+    "count_start": [13]
+  },
+  "expect": {"verdict": "violation", "rule_ids": ["R6"]},
+  "note": "Х-34 @13: клиент уходит, работница продолжает пересчёт. R4 подавлен: пересчёт в окне после ухода — это домен R6, не «невыдача». Таймкод стрика = официальный (13)."
+}

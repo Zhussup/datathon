@@ -1,0 +1,16 @@
+{
+  "video": "Х-3",
+  "duration": 30,
+  "intervals": {
+    "client_present": [[2, 30]],
+    "banknotes_on_desk": [[15, 28]]
+  },
+  "events": {
+    "doc_check": [5],
+    "money_handover": [12],
+    "count_start": [15],
+    "data_entry": [25]
+  },
+  "expect": {"verdict": "no_violation", "rule_ids": []},
+  "note": "Норма-визит: клиент дал паспорт, только после проверки начался пересчёт (annotations_team.csv Х-3). Сессия открыта до конца ролика — R4 не спрашивается."
+}

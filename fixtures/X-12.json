@@ -1,0 +1,20 @@
+{
+  "video": "Х-12",
+  "duration": 40,
+  "intervals": {
+    "client_present": [[0, 25]],
+    "banknotes_on_desk": [[12, 18]],
+    "safe_open": [[0, 20]],
+    "key_in_lock": [[20, 26.5]]
+  },
+  "events": {
+    "doc_check": [3],
+    "money_handover": [8],
+    "count_start": [12],
+    "data_entry": [22],
+    "money_to_safe": [20],
+    "walk_away": [30]
+  },
+  "expect": {"verdict": "no_violation", "rule_ids": []},
+  "note": "Норма-уход: пересчёт есть, сейф закрыт на ключ до ухода, ключ вынут (Х-12). Деньги убраны до конца визита — R4 молчит."
+}
