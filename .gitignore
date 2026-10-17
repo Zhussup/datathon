@@ -9,3 +9,5 @@ w1_frames/
 w1_pack/
 w1_preds/
 venv-det/
+backend/storage/
+__pycache__/
