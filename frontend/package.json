@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test src/demo.test.mjs"
+    "test": "node --experimental-strip-types --test src/video.test.mjs src/motion.test.mjs"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
