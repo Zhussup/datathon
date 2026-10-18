@@ -338,6 +338,22 @@
     font-size: 12px;
     color: var(--ink-2);
   }
+  .metric-help {
+    margin: 10px 0 0;
+    max-width: 72ch;
+    padding: 10px 12px;
+    border-left: 2px solid var(--line-strong);
+    background: var(--panel-2);
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .metric-help strong {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+  }
   .section-stat strong { display: block; font-size: 20px; color: var(--ink); font-weight: 500; }
   .split {
     display: grid;
@@ -731,6 +747,39 @@
     .panel { padding: 16px; }
     .legend { grid-template-columns: 1fr; }
     .shown { margin-left: 0; width: 100%; }
+    .case-table { min-width: 0; }
+    .case-table thead { display: none; }
+    .case-table tbody { display: block; }
+    .case-table tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 3px 10px;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .case-table tbody tr:last-child { border-bottom: 0; }
+    .case-table td { border: 0; padding: 0; }
+    .case-table td:nth-child(2) { grid-column: 2; grid-row: 1; justify-self: end; }
+    .case-table td:nth-child(3) { grid-column: 1; grid-row: 2; font-size: 11.5px; }
+    .case-table td:nth-child(3)::before { content: "метка "; color: var(--muted); }
+    .case-table td:nth-child(3)::after { content: " с"; color: var(--muted); }
+    .case-table td:nth-child(6) { grid-column: 2; grid-row: 2; justify-self: end; font-size: 11.5px; }
+    .case-table td:nth-child(6)::before { content: "Δ "; color: var(--muted); }
+    .case-table td:nth-child(6)::after { content: " с"; color: var(--muted); }
+    .case-table td:nth-child(5) { display: none; }
+    .case-table td.tcs {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      max-width: none;
+      margin-top: 3px;
+      font-size: 11.5px;
+      color: var(--ink);
+    }
+    .case-table td.tcs::before { content: "таймкоды · "; color: var(--muted); }
+    .case-table td:nth-child(3):has(.dash)::before,
+    .case-table td:nth-child(3):has(.dash)::after,
+    .case-table td:nth-child(6):has(.dash)::before,
+    .case-table td:nth-child(6):has(.dash)::after { content: none; }
     footer { flex-direction: column; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -858,7 +907,7 @@
         </article>
         <article class="finding false">
           <p class="kick">Ложные · 13</p>
-          <h3>Два ролика дают 25 событий</h3>
+          <h3>Два ролика дают 26 событий</h3>
           <p>X-14 (142 с) выдал 16 таймкодов, X-39 (79 с) — 10. Радиус склейки 3 с не собрал повторные срабатывания. Это 26 из 54 ложных событий во всём прогоне.</p>
         </article>
         <article class="finding cover">
@@ -907,7 +956,7 @@
         <span class="shown" id="shownCount">показано 38</span>
       </div>
       <div class="table-scroll">
-        <table>
+        <table class="case-table">
           <caption class="sr-only">Результаты финального бенчмарка по 38 кейсам</caption>
           <thead>
             <tr>
@@ -930,6 +979,7 @@
           <p class="eyebrow">Контекст · детектор</p>
           <h2 class="section-title" id="trainTitle">Кривые валидации</h2>
           <p class="section-note">RF-DETR Nano, 60 эпох, EMA-метрики на валидационном сплите. Верхняя линия — mAP@50, нижняя — mAP@50:95.</p>
+          <p class="metric-help"><strong>mAP@50</strong> — средняя точность детекции: бокс засчитывается, если его пересечение с эталонным ≥ 50%. <strong>mAP@50:95</strong> — та же метрика, усреднённая по порогам 50–95%, поэтому она строже и всегда ниже. 1.0 — идеал, 0 — детектор не находит ничего.</p>
         </div>
         <div class="section-stat"><strong>0.908</strong>mAP@50 · финал</div>
       </div>
@@ -1097,10 +1147,10 @@
     tr.innerHTML = `
       <td class="video">${esc(c.video)}</td>
       <td><span class="pill ${m.pill}"><span class="ic" aria-hidden="true">${m.icon}</span>${m.label}</span></td>
-      <td class="num">${c.label_tc == null ? "—" : c.label_tc.toFixed(0)}</td>
+      <td class="num">${c.label_tc == null ? '<span class="dash">—</span>' : c.label_tc.toFixed(0)}</td>
       <td class="tcs">${esc(tcs)}</td>
       <td class="num">${c.our_tcs.length || "—"}</td>
-      <td class="num">${c.delta == null ? "—" : c.delta.toFixed(1)}</td>`;
+      <td class="num">${c.delta == null ? '<span class="dash">—</span>' : c.delta.toFixed(1)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -1136,11 +1186,15 @@
   const trainTip = bindTip(document.getElementById("trainShell"), document.getElementById("trainTip"));
 
   // ---------- delta chart ----------
-  (function renderDelta() {
+  function renderDelta() {
     const svg = document.getElementById("deltaChart");
+    svg.replaceChildren();
     const tps = CASES.filter(c => c.outcome === "TP" || c.outcome === "TP-даль")
       .slice().sort((a, b) => a.delta - b.delta);
-    const W = 760, left = 58, right = 88, top = 30, rowH = 24, bottom = 36;
+    const W = Math.max(260, Math.round(svg.parentElement.getBoundingClientRect().width)) || 760;
+    const narrow = W < 560;
+    const left = narrow ? 42 : 58, right = narrow ? 56 : 88;
+    const top = 30, rowH = narrow ? 22 : 24, bottom = 36;
     const H = top + tps.length * rowH + bottom;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const xmax = 24;
@@ -1217,12 +1271,16 @@
       hit.addEventListener("blur", deltaTip.hide);
       svg.appendChild(hit);
     });
-  })();
+  }
 
   // ---------- training chart ----------
-  (function renderTraining() {
+  function renderTraining() {
     const svg = document.getElementById("trainChart");
-    const W = 760, H = 300, left = 44, right = 132, top = 20, bottom = 36;
+    svg.replaceChildren();
+    const W = Math.max(260, Math.round(svg.parentElement.getBoundingClientRect().width)) || 760;
+    const narrow = W < 560;
+    const H = narrow ? 250 : 300, left = narrow ? 34 : 44, right = narrow ? 54 : 132, top = 20, bottom = 36;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     const n = TRAIN.length;
     const x = i => left + (i / (n - 1)) * (W - left - right);
     const y = v => top + (1 - v) * (H - top - bottom);
@@ -1283,7 +1341,7 @@
       }));
       svg.appendChild(el("text", {
         x: W - right + 21, y: y(last[s.key]) + 3.5, "class": "series-label"
-      }, `${s.label} ${last[s.key].toFixed(3)}`));
+      }, narrow ? last[s.key].toFixed(3) : `${s.label} ${last[s.key].toFixed(3)}`));
     });
 
     // hover
@@ -1329,7 +1387,23 @@
       );
     });
     overlay.addEventListener("mouseleave", hide);
-  })();
+  }
+
+  // ---------- responsive re-render ----------
+  renderDelta();
+  renderTraining();
+  let lastW = Math.round(document.getElementById("deltaShell").getBoundingClientRect().width);
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const w = Math.round(document.getElementById("deltaShell").getBoundingClientRect().width);
+      if (Math.abs(w - lastW) < 12) return;
+      lastW = w;
+      renderDelta();
+      renderTraining();
+    }, 160);
+  });
 
   // ---------- epoch table ----------
   (function renderEpochs() {
