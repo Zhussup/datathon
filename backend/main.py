@@ -28,7 +28,9 @@ def check_api_key(x_api_key: Annotated[str | None, Header()] = None):
         raise HTTPException(401, "Invalid API key")
 
 
-app = FastAPI(title="Forte Vision API", dependencies=[Depends(check_api_key)])
+# Ключ проверяется на каждом API-ручнике (Depends), НЕ на app целиком:
+# статика фронтенда должна отдаваться без ключа — жюри открывает URL в браузере.
+app = FastAPI(title="Forte Vision API")
 
 # Фронт может лежать на другом порту/хосте; ключ всё равно проверяет заголовок.
 app.add_middleware(
@@ -39,7 +41,7 @@ app.add_middleware(
 )
 
 
-@app.post("/api/v1/analyze", status_code=202)
+@app.post("/api/v1/analyze", status_code=202, dependencies=[Depends(check_api_key)])
 async def analyze(file: UploadFile):
     try:
         if Path(file.filename or "").suffix.lower() not in {".mov", ".mp4"}:
@@ -72,7 +74,7 @@ async def analyze(file: UploadFile):
         await file.close()
 
 
-@app.get("/api/v1/jobs/{job_id}")
+@app.get("/api/v1/jobs/{job_id}", dependencies=[Depends(check_api_key)])
 def get_job(job_id: str):
     job = store.public(job_id)
     if job is None:
@@ -80,7 +82,7 @@ def get_job(job_id: str):
     return job
 
 
-@app.get("/api/v1/version")
+@app.get("/api/v1/version", dependencies=[Depends(check_api_key)])
 def version():
     """Снимок сборки для жюри и приёмки: сколько правил, какой бюджет обработки."""
     mtime = Path(pipeline_rules.__file__).stat().st_mtime
@@ -94,3 +96,13 @@ def version():
         "process_budget_sec": worker.PROCESS_BUDGET_SEC,
         "worker_count": worker.WORKER_COUNT,
     }
+
+
+# ---------- статика фронтенда (тот же origin, что и API) ----------
+# Жюри открывает URL в браузере → index.html + assets; API-роуты выше имеют
+# приоритет (регистрируются раньше), всё остальное уходит в dist.
+# dist собирается с VITE_API_KEY → ключ уже запечён, UI работает сразу.
+_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if (_DIST / "index.html").exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="frontend")
