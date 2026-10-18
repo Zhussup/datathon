@@ -1,0 +1,1347 @@
+<title>Бенчмарк W4</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Ledger-like audit report: warm paper, ink rules, one magenta accent, mono data. */
+  :root {
+    color-scheme: light;
+    --bg: #f8f7f5;
+    --panel: #fffefd;
+    --panel-2: #efeeeb;
+    --ink: #252324;
+    --ink-2: #5c5755;
+    --muted: #898582;
+    --faint: #aba6a2;
+    --line: #e4e1dd;
+    --line-strong: #cfcac5;
+    --accent: #92245f;
+    --accent-soft: #f3e6eb;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --good: #0ca30c;
+    --good-text: #0a6b0a;
+    --good-bg: #e6f4e6;
+    --warn: #fab219;
+    --warn-text: #7a4b00;
+    --warn-bg: #fff2d6;
+    --serious: #ec835a;
+    --serious-text: #8f4522;
+    --serious-bg: #fcebe3;
+    --critical: #d03b3b;
+    --critical-text: #a32424;
+    --critical-bg: #fbe7e7;
+    --neutral: #2a78d6;
+    --neutral-text: #245a9e;
+    --neutral-bg: #e9eef7;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --band: #f1f0eb;
+    --tooltip-bg: #252324;
+    --tooltip-ink: #f8f7f5;
+    --font-display: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #151515;
+      --panel: #1d1d1d;
+      --panel-2: #252525;
+      --ink: #f1eeea;
+      --ink-2: #c9c4bf;
+      --muted: #99938e;
+      --faint: #68635f;
+      --line: #302d2b;
+      --line-strong: #45403d;
+      --accent: #d9a6b9;
+      --accent-soft: #2b2226;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --good: #0ca30c;
+      --good-text: #4fcf4f;
+      --good-bg: #152815;
+      --warn: #fab219;
+      --warn-text: #f3c45a;
+      --warn-bg: #2e2410;
+      --serious: #ec835a;
+      --serious-text: #f0a07d;
+      --serious-bg: #2e1e16;
+      --critical: #d03b3b;
+      --critical-text: #ef7a7a;
+      --critical-bg: #2e1717;
+      --neutral: #3987e5;
+      --neutral-text: #8fb6ee;
+      --neutral-bg: #1a2333;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --band: #222220;
+      --tooltip-bg: #f1eeea;
+      --tooltip-ink: #151515;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #151515;
+    --panel: #1d1d1d;
+    --panel-2: #252525;
+    --ink: #f1eeea;
+    --ink-2: #c9c4bf;
+    --muted: #99938e;
+    --faint: #68635f;
+    --line: #302d2b;
+    --line-strong: #45403d;
+    --accent: #d9a6b9;
+    --accent-soft: #2b2226;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --good: #0ca30c;
+    --good-text: #4fcf4f;
+    --good-bg: #152815;
+    --warn: #fab219;
+    --warn-text: #f3c45a;
+    --warn-bg: #2e2410;
+    --serious: #ec835a;
+    --serious-text: #f0a07d;
+    --serious-bg: #2e1e16;
+    --critical: #d03b3b;
+    --critical-text: #ef7a7a;
+    --critical-bg: #2e1717;
+    --neutral: #3987e5;
+    --neutral-text: #8fb6ee;
+    --neutral-bg: #1a2333;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --band: #222220;
+    --tooltip-bg: #f1eeea;
+    --tooltip-ink: #151515;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  .masthead { border-top: 3px solid var(--accent); }
+  .topline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 18px 0 12px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .topline .brand { color: var(--ink); font-weight: 600; letter-spacing: 0.12em; }
+  .topline .sep { width: 18px; height: 1px; background: var(--line-strong); }
+  .topline time { margin-left: auto; }
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr);
+    gap: 48px;
+    align-items: end;
+    padding: 44px 0 38px;
+  }
+  .eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(2.5rem, 6vw, 4.6rem);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    font-weight: 700;
+    text-wrap: balance;
+    max-width: 13ch;
+  }
+  .lede {
+    margin: 18px 0 0;
+    max-width: 58ch;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .hero-figure {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-top: 26px;
+    font-size: clamp(3.6rem, 8.4vw, 6.4rem);
+    line-height: 0.9;
+    letter-spacing: -0.06em;
+    font-weight: 700;
+  }
+  .hero-figure .den { color: var(--muted); font-weight: 500; }
+  .hero-figure .caption {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    max-width: 16ch;
+  }
+  .meter {
+    margin-top: 18px;
+    height: 9px;
+    background: var(--panel-2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block;
+    height: 100%;
+    width: 85%;
+    background: var(--accent);
+    border-radius: 99px;
+  }
+  .meter-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .hero-meta {
+    border-left: 1px solid var(--line);
+    padding-left: 24px;
+  }
+  .hero-meta dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 9px 18px;
+    margin: 0;
+    font-size: 12px;
+  }
+  .hero-meta dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    align-self: center;
+  }
+  .hero-meta dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .priority {
+    margin: 22px 0 0;
+    padding: 2px 0 2px 14px;
+    border-left: 2px solid var(--accent);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .kpi { padding: 20px 22px 18px; border-left: 1px solid var(--line); min-width: 0; }
+  .kpi:first-child { border-left: 0; padding-left: 0; }
+  .kpi:last-child { padding-right: 0; }
+  .kpi-label {
+    margin: 0 0 7px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .kpi-value {
+    font-size: clamp(1.65rem, 2.8vw, 2.15rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .kpi-value .unit { font-size: 13px; color: var(--muted); letter-spacing: 0; font-weight: 400; }
+  .kpi-sub { margin: 7px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+  .chip-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .chip-flag.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .section { padding: 40px 0; border-top: 1px solid var(--line); }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 28px;
+    margin-bottom: 22px;
+  }
+  .section-title {
+    margin: 0;
+    font-size: clamp(1.2rem, 2vw, 1.45rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .section-note {
+    margin: 7px 0 0;
+    max-width: 66ch;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .section-stat {
+    flex: 0 0 auto;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .section-stat strong { display: block; font-size: 20px; color: var(--ink); font-weight: 500; }
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 20px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    min-width: 0;
+  }
+  .panel-title {
+    margin: 0 0 3px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .panel-sub { margin: 0 0 18px; font-size: 11.5px; color: var(--muted); }
+  .cm {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(96px, 1fr) minmax(96px, 1fr);
+    gap: 6px;
+  }
+  .cm-head {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 2px 4px;
+    align-self: end;
+    line-height: 1.35;
+  }
+  .cm-rowlabel {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.35;
+    padding-right: 6px;
+  }
+  .cm-cell {
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+  .cm-cell .n {
+    font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 600;
+  }
+  .cm-cell .lab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.3;
+  }
+  .cm-cell .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+  .cm-cell.tp { background: var(--good-bg); color: var(--good-text); }
+  .cm-cell.tp .ico { background: var(--good); color: #fff; }
+  .cm-cell.fn { background: var(--critical-bg); color: var(--critical-text); }
+  .cm-cell.fn .ico { background: var(--critical); color: #fff; }
+  .cm-cell.fp { background: var(--serious-bg); color: var(--serious-text); }
+  .cm-cell.fp .ico { background: var(--serious); color: #fff; }
+  .cm-cell.tn { background: var(--neutral-bg); color: var(--neutral-text); }
+  .cm-cell.tn .ico { background: var(--neutral); color: #fff; }
+  .cm-caption {
+    margin: 16px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  .stack {
+    display: flex;
+    gap: 2px;
+    height: 16px;
+    margin: 4px 0 20px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .stack > span { display: block; height: 100%; min-width: 2px; }
+  .stack .s-tp { background: var(--good); }
+  .stack .s-fn { background: var(--critical); }
+  .stack .s-fp { background: var(--serious); }
+  .stack .s-tn { background: var(--neutral); }
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .legend li {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .legend .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .legend .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .legend .sub { display: block; font-size: 10.5px; color: var(--muted); line-height: 1.35; }
+  .composition-note {
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .composition-note strong { color: var(--ink); font-weight: 600; }
+  .findings {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+    margin-top: 24px;
+  }
+  .finding { border-left: 2px solid var(--line-strong); padding-left: 16px; min-width: 0; }
+  .finding.miss { border-color: var(--critical); }
+  .finding.false { border-color: var(--serious); }
+  .finding.cover { border-color: var(--neutral); }
+  .finding .kick {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .finding h3 { margin: 0 0 6px; font-size: 14.5px; line-height: 1.3; font-weight: 600; }
+  .finding p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink-2); }
+  .finding code {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    background: var(--panel-2);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .chart-shell { position: relative; }
+  .chart-shell svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart-tip {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    max-width: 240px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-ink);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity 120ms ease;
+  }
+  .chart-tip.on { opacity: 1; }
+  .chart-tip .tip-key { color: var(--tooltip-ink); opacity: 0.7; }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+  .legend-row .item { display: inline-flex; align-items: center; gap: 7px; }
+  .legend-row .sw { width: 16px; height: 3px; border-radius: 2px; }
+  .axis-label { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+  .axis-title { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); letter-spacing: 0.04em; }
+  .series-label { font-family: var(--font-mono); font-size: 10.5px; fill: var(--ink-2); }
+  .threshold-label { font-family: var(--font-mono); font-size: 9.5px; fill: var(--muted); }
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .chip {
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--ink-2);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .chip:hover { background: var(--panel-2); }
+  .chip[aria-pressed="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--bg);
+  }
+  .shown {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    -webkit-overflow-scrolling: touch;
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  th {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.video { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.tcs { font-family: var(--font-mono); font-variant-numeric: tabular-nums; max-width: 300px; line-height: 1.5; word-break: break-word; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pill .ic { font-size: 10px; font-weight: 700; }
+  .pill.good { background: var(--good-bg); color: var(--good-text); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .pill.serious { background: var(--serious-bg); color: var(--serious-text); }
+  .pill.critical { background: var(--critical-bg); color: var(--critical-text); }
+  .pill.neutral { background: var(--neutral-bg); color: var(--neutral-text); }
+  .train-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.65fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .metric-list { margin: 0; padding: 0; list-style: none; }
+  .metric-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .metric-list li:last-child { border-bottom: 0; }
+  .metric-list .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .metric-list .cap { font-size: 10.5px; color: var(--muted); display: block; }
+  .caveats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+  }
+  .caveat { min-width: 0; }
+  .caveat .kick {
+    margin: 0 0 7px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .caveat p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+  .caveat p + p { margin-top: 8px; }
+  .next {
+    margin: 34px 0 0;
+    padding: 22px 0 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 22px;
+  }
+  .next h3 {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .next p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+  details.epochs { margin-top: 20px; }
+  details.epochs summary {
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 0;
+  }
+  details.epochs summary:hover { color: var(--ink); }
+  details.epochs .table-scroll { margin-top: 8px; }
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 22px 0 38px;
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+  }
+  footer .src { max-width: 72ch; }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 30px; }
+    .hero-meta { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 22px; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpi { padding: 18px 16px; }
+    .kpi:nth-child(3) { border-left: 0; padding-left: 0; }
+    .kpi:nth-child(1), .kpi:nth-child(2) { border-bottom: 1px solid var(--line); }
+    .kpi:nth-child(2), .kpi:nth-child(4) { padding-right: 0; }
+    .split, .train-grid { grid-template-columns: 1fr; }
+    .findings, .caveats, .next { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 620px) {
+    body { font-size: 14px; }
+    .topline time { margin-left: 0; width: 100%; }
+    .hero { padding: 32px 0 28px; }
+    .hero-figure { margin-top: 20px; }
+    .kpi-label { font-size: 9.5px; }
+    .section { padding: 30px 0; }
+    .section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .section-stat { text-align: left; }
+    .findings, .caveats, .next { grid-template-columns: 1fr; }
+    .cm { grid-template-columns: 78px minmax(0, 1fr) minmax(0, 1fr); }
+    .cm-cell { padding: 11px; }
+    .cm-cell .n { font-size: 1.8rem; }
+    .cm-cell .lab { font-size: 9px; }
+    .panel { padding: 16px; }
+    .legend { grid-template-columns: 1fr; }
+    .shown { margin-left: 0; width: 100%; }
+    footer { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="topline">
+      <span class="brand">Forte Vision</span>
+      <span class="sep" aria-hidden="true"></span>
+      <span>W4 / event-level</span>
+      <span class="sep" aria-hidden="true"></span>
+      <span>38 кейсов</span>
+      <time datetime="2026-10-18T10:40">18.10.2026 · 10:40</time>
+    </div>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Финальный прогон движка</p>
+        <h1>Полный бенчмарк W4</h1>
+        <p class="lede">Проверка вердиктов на размеченных роликах: 17 найденных нарушений, 3 пропуска, 13 ложных срабатываний и 5 верных «чисто». Каждый кейс — отдельная метка из <span class="mono">labels.csv</span>.</p>
+        <div class="hero-figure">
+          <span id="heroTp">17</span><span class="den">/20</span>
+          <span class="caption">нарушений найдено<br><strong>recall 0.85</strong></span>
+        </div>
+        <div class="meter" role="img" aria-label="Найдено 17 из 20 нарушений, 85 процентов">
+          <span></span>
+        </div>
+        <div class="meter-scale"><span>0</span><span>20 нарушений</span></div>
+      </div>
+      <aside class="hero-meta">
+        <dl>
+          <dt>Прогон</dt><dd>18.10.2026, ~10:40</dd>
+          <dt>Кейсов</dt><dd>38 из 42 размеченных</dd>
+          <dt>Файлов</dt><dd>36 уникальных</dd>
+          <dt>Детектор</dt><dd>RF-DETR Nano · 60 эпох</dd>
+          <dt>Инференс</dt><dd>1 fps · порог 0.4</dd>
+          <dt>Окно</dt><dd>±10 с до метки</dd>
+        </dl>
+        <p class="priority">Приоритет по ТЗ: пропуски хуже ложных. Поэтому главная цифра — recall, а не precision.</p>
+      </aside>
+    </div>
+  </header>
+
+  <section class="kpis" aria-label="Ключевые метрики">
+    <div class="kpi">
+      <p class="kpi-label">Precision</p>
+      <div class="kpi-value">0.57 <span class="unit">17 / 30</span></div>
+      <p class="kpi-sub">Из всех вердиктов «нарушение» верны 17. Тринадцать — ложные.</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">F1</p>
+      <div class="kpi-value">0.68</div>
+      <p class="kpi-sub">Баланс precision и recall на 38 кейсах.</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Таймкод</p>
+      <div class="kpi-value">16 / 17 <span class="unit">в ±10 с</span></div>
+      <p class="kpi-sub">Медианная ошибка — 3.0 с. Вне окна только X-1: 22 с.</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Ложные на чистых</p>
+      <div class="kpi-value">13 / 18 <span class="chip-flag warn">риск</span></div>
+      <p class="kpi-sub">72% чистых кейсов дали хотя бы одно ложное событие.</p>
+    </div>
+  </section>
+
+  <main>
+    <section class="section" aria-labelledby="confusionTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Классификация вердикта</p>
+          <h2 class="section-title" id="confusionTitle">Матрица ошибок</h2>
+          <p class="section-note">Строки — официальная метка, столбцы — вердикт движка. TP и TN — верные решения; FN — пропуск нарушения; FP — ложное срабатывание на чистом ролике.</p>
+        </div>
+        <div class="section-stat"><strong>38</strong>кейсов</div>
+      </div>
+      <div class="split">
+        <div class="panel">
+          <h3 class="panel-title">Решения движка</h3>
+          <p class="panel-sub">Счёт по кейсам, не по отдельным событиям внутри ролика</p>
+          <div class="cm" role="table" aria-label="Матрица ошибок">
+            <div class="cm-head" aria-hidden="true"></div>
+            <div class="cm-head">Прогноз:<br>нарушение</div>
+            <div class="cm-head">Прогноз:<br>чисто</div>
+
+            <div class="cm-rowlabel">Факт:<br>нарушение</div>
+            <div class="cm-cell tp" role="cell">
+              <span class="n" id="cmTp">17</span>
+              <span class="lab"><span class="ico" aria-hidden="true">✓</span>TP · найдено</span>
+            </div>
+            <div class="cm-cell fn" role="cell">
+              <span class="n" id="cmFn">3</span>
+              <span class="lab"><span class="ico" aria-hidden="true">×</span>FN · пропуск</span>
+            </div>
+
+            <div class="cm-rowlabel">Факт:<br>чисто</div>
+            <div class="cm-cell fp" role="cell">
+              <span class="n" id="cmFp">13</span>
+              <span class="lab"><span class="ico" aria-hidden="true">+</span>FP · ложное</span>
+            </div>
+            <div class="cm-cell tn" role="cell">
+              <span class="n" id="cmTn">5</span>
+              <span class="lab"><span class="ico" aria-hidden="true">·</span>TN · чисто</span>
+            </div>
+          </div>
+          <p class="cm-caption">precision = 17 / (17 + 13) = 0.57<br>recall = 17 / (17 + 3) = 0.85<br>F1 = 0.68</p>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Из чего состоят 38 кейсов</h3>
+          <p class="panel-sub">Доля каждого исхода в общем наборе</p>
+          <div class="stack" id="stack" role="img" aria-label="17 TP, 13 FP, 5 TN, 3 FN из 38 кейсов"></div>
+          <ul class="legend" id="stackLegend"></ul>
+          <p class="composition-note"><strong>13 из 18 чистых кейсов</strong> дали ложное срабатывание. Почти половина ложных событий приходится на два длинных ролика: X-14 (16 таймкодов) и X-39 (10).</p>
+        </div>
+      </div>
+
+      <div class="findings">
+        <article class="finding miss">
+          <p class="kick">Пропуски · 3</p>
+          <h3>X-11, X-24, X-32</h3>
+          <p>X-11 @18 с и X-32 @5 с — события у входной двери, которых нет в словаре примитивов. X-24 @8 с требует отдельного разбора: причина пропуска в документации не зафиксирована.</p>
+        </article>
+        <article class="finding false">
+          <p class="kick">Ложные · 13</p>
+          <h3>Два ролика дают 25 событий</h3>
+          <p>X-14 (142 с) выдал 16 таймкодов, X-39 (79 с) — 10. Радиус склейки 3 с не собрал повторные срабатывания. Это 26 из 54 ложных событий во всём прогоне.</p>
+        </article>
+        <article class="finding cover">
+          <p class="kick">Покрытие · 38 / 42</p>
+          <h3>Четыре кейса не прогнаны</h3>
+          <p>В финальный прогон не попали X-20, X-27, X-35, X-46. Дубли X-4 / X-47 считаются как два события (@57 и @68); X-5 / X-48 — один и тот же чистый файл, поэтому один FP дублируется.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="timeTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Локализация · критерий 2 ТЗ</p>
+          <h2 class="section-title" id="timeTitle">Насколько точен таймкод</h2>
+          <p class="section-note">Δ — расстояние от официальной метки до ближайшего нашего таймкода. Зелёная зона — допустимое окно ±10 с; красная точка X-1 выходит за него.</p>
+        </div>
+        <div class="section-stat"><strong>3.0 с</strong>медиана · 16 из 17 в окне</div>
+      </div>
+      <div class="panel">
+        <div class="chart-shell" id="deltaShell">
+          <div class="chart-tip" id="deltaTip" role="status" aria-live="polite"></div>
+          <svg id="deltaChart" viewBox="0 0 760 520" role="img" aria-labelledby="deltaSvgTitle deltaSvgDesc">
+            <title id="deltaSvgTitle">Ошибка таймкода для 17 найденных нарушений</title>
+            <desc id="deltaSvgDesc">Точки по горизонтальной шкале от 0 до 24 секунд; 16 точек в пределах 10 секунд, одна на 22 секунды.</desc>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="tableTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Все кейсы</p>
+          <h2 class="section-title" id="tableTitle">Разбор по роликам</h2>
+          <p class="section-note">Полный список финального прогона. Фильтр по исходу, таймкоды — в секундах от начала ролика.</p>
+        </div>
+        <div class="section-stat"><strong>107</strong>событий в 38 кейсах</div>
+      </div>
+      <div class="filters" role="group" aria-label="Фильтр по исходу">
+        <button class="chip" type="button" data-filter="all" aria-pressed="true">Все · 38</button>
+        <button class="chip" type="button" data-filter="tp" aria-pressed="false">TP · 17</button>
+        <button class="chip" type="button" data-filter="fn" aria-pressed="false">FN · 3</button>
+        <button class="chip" type="button" data-filter="fp" aria-pressed="false">FP · 13</button>
+        <button class="chip" type="button" data-filter="tn" aria-pressed="false">TN · 5</button>
+        <span class="shown" id="shownCount">показано 38</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <caption class="sr-only">Результаты финального бенчмарка по 38 кейсам</caption>
+          <thead>
+            <tr>
+              <th scope="col">Видео</th>
+              <th scope="col">Исход</th>
+              <th scope="col">Метка, с</th>
+              <th scope="col">Наши таймкоды, с</th>
+              <th scope="col">Событий</th>
+              <th scope="col">Δ, с</th>
+            </tr>
+          </thead>
+          <tbody id="caseRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="trainTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Контекст · детектор</p>
+          <h2 class="section-title" id="trainTitle">Кривые валидации</h2>
+          <p class="section-note">RF-DETR Nano, 60 эпох, EMA-метрики на валидационном сплите. Верхняя линия — mAP@50, нижняя — mAP@50:95.</p>
+        </div>
+        <div class="section-stat"><strong>0.908</strong>mAP@50 · финал</div>
+      </div>
+      <div class="train-grid">
+        <div class="panel">
+          <div class="legend-row">
+            <span class="item"><span class="sw" style="background: var(--series-1)"></span>mAP@50</span>
+            <span class="item"><span class="sw" style="background: var(--series-2)"></span>mAP@50:95</span>
+          </div>
+          <div class="chart-shell" id="trainShell">
+            <div class="chart-tip" id="trainTip" role="status" aria-live="polite"></div>
+            <svg id="trainChart" viewBox="0 0 760 300" role="img" aria-labelledby="trainSvgTitle trainSvgDesc">
+              <title id="trainSvgTitle">Валидационные метрики детектора по эпохам</title>
+              <desc id="trainSvgDesc">mAP@50 растёт до 0.927 к 53-й эпохе и заканчивает на 0.908; mAP@50:95 достигает максимума 0.588 на 18-й эпохе и заканчивает на 0.578.</desc>
+            </svg>
+          </div>
+          <details class="epochs">
+            <summary>Метрики по эпохам</summary>
+            <div class="table-scroll">
+              <table>
+                <caption class="sr-only">Валидационные метрики по выбранным эпохам</caption>
+                <thead>
+                  <tr><th scope="col">Эпоха</th><th scope="col">mAP@50</th><th scope="col">mAP@50:95</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1</th></tr>
+                </thead>
+                <tbody id="epochRows"></tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Финал обучения</h3>
+          <p class="panel-sub">Эпоха 59, EMA-веса</p>
+          <ul class="metric-list">
+            <li><span>mAP@50</span><span class="v">0.908</span></li>
+            <li><span>mAP@50:95</span><span class="v">0.578</span></li>
+            <li><span>Precision</span><span class="v">0.932</span></li>
+            <li><span>Recall</span><span class="v">0.862</span></li>
+            <li><span>F1</span><span class="v">0.891</span></li>
+            <li><span>Лучший mAP@50<span class="cap">эпоха 53</span></span><span class="v">0.927</span></li>
+            <li><span>Лучший mAP@50:95<span class="cap">эпоха 18</span></span><span class="v">0.588</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="caveatTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Честная рамка</p>
+          <h2 class="section-title" id="caveatTitle">Что стоит за цифрами</h2>
+          <p class="section-note">Бенчмарк измеряет event-level вердикты на размеченных роликах. Он не заменяет проверку на финальном видео под другим углом.</p>
+        </div>
+      </div>
+      <div class="caveats">
+        <div class="caveat">
+          <p class="kick">Покрытие</p>
+          <p>38 из 42 размеченных кейсов. Четыре отсутствуют в прогоне: X-20, X-27, X-35, X-46. Один и тот же файл X-5 / X-48 учтён дважды как чистый кейс, поэтому один FP — дубль.</p>
+          <p>X-4 / X-47 — не дубль по смыслу: в ролике два разных события, @57 и @68, и оба считаются отдельно.</p>
+        </div>
+        <div class="caveat">
+          <p class="kick">Детектор</p>
+          <p>Валидация — 98 кадров из тех же 42 роликов и того же ракурса. Per-class AP не снимался; класс <span class="mono">outerwear</span> не имеет боксов в разметке. Эти mAP не доказывают работу под другим углом.</p>
+          <p>Бенчмарк вердиктов и метрики детектора — разные слои: mAP измеряет боксы, таблица выше — решения движка.</p>
+        </div>
+        <div class="caveat">
+          <p class="kick">Метод</p>
+          <p>Метка из <span class="mono">labels.csv</span>, попадание — ближайший таймкод в окне ±10 с. Порог детектора 0.4, семплирование 1 fps, склейка событий в радиусе 3 с.</p>
+          <p>Прогон финальный, зафиксирован 18.10.2026 около 10:40; сервер для этого дашборда не запускался.</p>
+        </div>
+      </div>
+      <div class="next">
+        <div>
+          <h3>01 · Пропуск</h3>
+          <p>Разобрать X-24 @8 с: почему событие не попало в таблицу фактов.</p>
+        </div>
+        <div>
+          <h3>02 · Ложные</h3>
+          <p>Склеить повторные FP на X-14 и X-39 — это 26 из 54 ложных событий.</p>
+        </div>
+        <div>
+          <h3>03 · Покрытие</h3>
+          <p>Прогнать X-20, X-27, X-35, X-46 и добавить их в следующий срез.</p>
+        </div>
+        <div>
+          <h3>04 · Детектор</h3>
+          <p>Снять per-class AP на holdout и проверить финальный ракурс.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="src">Источник: финальный вывод <span class="mono">eval_labels.py</span> по 38 verdict.json (18.10.2026, ~10:40), агрегирован в <span class="mono">w4_benchmark/benchmark.json</span>. Метрики детектора — <span class="mono">w2_nano/metrics.csv</span>. Разметка — <span class="mono">labels.csv</span>.</div>
+    <div>Forte Vision · W4<br>статический отчёт</div>
+  </footer>
+</div>
+
+<script type="application/json" id="bench-data">{"summary":{"cases":38,"unique_files":36,"tp":17,"fn":3,"fp":13,"tn":5,"precision":0.5666666666666667,"recall":0.85,"f1":0.68,"within10":16,"median_delta":3.0,"misses":["x-11","x-24","x-32"],"false_positives":["x-3","x-5","x-8","x-10","x-12","x-14","x-16","x-19","x-37","x-39","x-43","x-45","x-48"],"true_negatives":["x-21","x-23","x-25","x-29","x-31"],"not_run":["X-20","X-27","X-35","X-46"],"duplicate_events":[["x-4","x-47"],["x-5","x-48"]]},"cases":[{"video":"x-1","outcome":"TP-даль","label_tc":22.0,"our_tcs":[0],"delta":22.0},{"video":"x-2","outcome":"TP","label_tc":10.0,"our_tcs":[4,10,12],"delta":0.0},{"video":"x-3","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[2,8,13,17],"delta":null},{"video":"x-4","outcome":"TP","label_tc":57.0,"our_tcs":[5,45,57,63],"delta":0.0},{"video":"x-5","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[0,30,64],"delta":null},{"video":"x-8","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[0,0,11],"delta":null},{"video":"x-10","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[10,10],"delta":null},{"video":"x-11","outcome":"FN ПРОПУСК","label_tc":18.0,"our_tcs":[],"delta":null},{"video":"x-12","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[27],"delta":null},{"video":"x-13","outcome":"TP","label_tc":47.0,"our_tcs":[2,7,12,15,18,22,27,31,37,37,37,42,50,58],"delta":3.0},{"video":"x-14","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[1,8,15,21,30,31,36,40,40,55,55,67,67,78,78,119],"delta":null},{"video":"x-15","outcome":"TP","label_tc":15.0,"our_tcs":[18],"delta":3.0},{"video":"x-16","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[4],"delta":null},{"video":"x-17","outcome":"TP","label_tc":7.0,"our_tcs":[4],"delta":3.0},{"video":"x-18","outcome":"TP","label_tc":20.0,"our_tcs":[3,7,11,14],"delta":6.0},{"video":"x-19","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[3,8,10,23,39,50],"delta":null},{"video":"x-21","outcome":"TN","label_tc":null,"our_tcs":[],"delta":null},{"video":"x-22","outcome":"TP","label_tc":14.0,"our_tcs":[14],"delta":0.0},{"video":"x-23","outcome":"TN","label_tc":null,"our_tcs":[],"delta":null},{"video":"x-24","outcome":"FN ПРОПУСК","label_tc":8.0,"our_tcs":[],"delta":null},{"video":"x-25","outcome":"TN","label_tc":null,"our_tcs":[],"delta":null},{"video":"x-26","outcome":"TP","label_tc":9.0,"our_tcs":[7,17,18],"delta":2.0},{"video":"x-28","outcome":"TP","label_tc":7.0,"our_tcs":[10],"delta":3.0},{"video":"x-29","outcome":"TN","label_tc":null,"our_tcs":[],"delta":null},{"video":"x-30","outcome":"TP","label_tc":13.0,"our_tcs":[13],"delta":0.0},{"video":"x-31","outcome":"TN","label_tc":null,"our_tcs":[],"delta":null},{"video":"x-32","outcome":"FN ПРОПУСК","label_tc":5.0,"our_tcs":[],"delta":null},{"video":"x-33","outcome":"TP","label_tc":6.0,"our_tcs":[10],"delta":4.0},{"video":"x-34","outcome":"TP","label_tc":13.0,"our_tcs":[2,7],"delta":6.0},{"video":"x-37","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[2,8,15],"delta":null},{"video":"x-38","outcome":"TP","label_tc":33.0,"our_tcs":[1,4,33,45,45],"delta":0.0},{"video":"x-39","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[1,3,21,21,21,38,40,45,60,74],"delta":null},{"video":"x-40","outcome":"TP","label_tc":17.0,"our_tcs":[3,20],"delta":3.0},{"video":"x-43","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[18],"delta":null},{"video":"x-44","outcome":"TP","label_tc":16.0,"our_tcs":[2,6,11,11,16],"delta":0.0},{"video":"x-45","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[10],"delta":null},{"video":"x-47","outcome":"TP","label_tc":68.0,"our_tcs":[5,45,57,63],"delta":5.0},{"video":"x-48","outcome":"FP ЛОЖНЫЙ","label_tc":null,"our_tcs":[0,30,64],"delta":null}],"training":[{"epoch":0,"mAP50":0.5693085789680481,"mAP5095":0.34771737456321716,"precision":0.5600000023841858,"recall":0.4827612638473511,"f1":0.5096175670623779},{"epoch":1,"mAP50":0.662521243095398,"mAP5095":0.41873452067375183,"precision":0.7632323503494263,"recall":0.633663535118103,"f1":0.6817893385887146},{"epoch":2,"mAP50":0.7435657978057861,"mAP5095":0.45778974890708923,"precision":0.8766666650772095,"recall":0.6574229001998901,"f1":0.7184802889823914},{"epoch":3,"mAP50":0.8043305277824402,"mAP5095":0.4924211800098419,"precision":0.766755223274231,"recall":0.8259191513061523,"f1":0.7900918126106262},{"epoch":4,"mAP50":0.8062469959259033,"mAP5095":0.4925196170806885,"precision":0.8072649836540222,"recall":0.7629116177558899,"f1":0.7657983899116516},{"epoch":5,"mAP50":0.8086134195327759,"mAP5095":0.5154816508293152,"precision":0.7655243873596191,"recall":0.8368213772773743,"f1":0.7870302200317383},{"epoch":6,"mAP50":0.8404145240783691,"mAP5095":0.5466019511222839,"precision":0.8383384943008423,"recall":0.8048664927482605,"f1":0.8104129433631897},{"epoch":7,"mAP50":0.8622252941131592,"mAP5095":0.5469360947608948,"precision":0.8633859157562256,"recall":0.8105807900428772,"f1":0.8273636698722839},{"epoch":8,"mAP50":0.8703180551528931,"mAP5095":0.5668342709541321,"precision":0.8463955521583557,"recall":0.8544905781745911,"f1":0.844386875629425},{"epoch":9,"mAP50":0.8785526752471924,"mAP5095":0.5697206854820251,"precision":0.8889210820198059,"recall":0.8373477458953857,"f1":0.8570982217788696},{"epoch":10,"mAP50":0.8875741362571716,"mAP5095":0.5753839612007141,"precision":0.916685938835144,"recall":0.8473477363586426,"f1":0.8759810328483582},{"epoch":11,"mAP50":0.8902732133865356,"mAP5095":0.576001763343811,"precision":0.9017934799194336,"recall":0.8702048659324646,"f1":0.8825901746749878},{"epoch":12,"mAP50":0.8971136212348938,"mAP5095":0.5720363259315491,"precision":0.9064295291900635,"recall":0.8587762713432312,"f1":0.8790075182914734},{"epoch":13,"mAP50":0.9072871804237366,"mAP5095":0.5708894729614258,"precision":0.9123538136482239,"recall":0.8644905686378479,"f1":0.8838961124420166},{"epoch":14,"mAP50":0.9037123322486877,"mAP5095":0.5765563249588013,"precision":0.9248999357223511,"recall":0.8530619740486145,"f1":0.8839489817619324},{"epoch":15,"mAP50":0.8999817967414856,"mAP5095":0.5826161503791809,"precision":0.9160913228988647,"recall":0.8516127467155457,"f1":0.8785508275032043},{"epoch":16,"mAP50":0.9016395211219788,"mAP5095":0.5819498300552368,"precision":0.9538874626159668,"recall":0.8287348747253418,"f1":0.8824835419654846},{"epoch":17,"mAP50":0.8962628245353699,"mAP5095":0.5842289328575134,"precision":0.9524381756782532,"recall":0.8272855877876282,"f1":0.8810343146324158},{"epoch":18,"mAP50":0.9036262631416321,"mAP5095":0.5874659419059753,"precision":0.9524381756782532,"recall":0.8272855877876282,"f1":0.8810343146324158},{"epoch":19,"mAP50":0.8976912498474121,"mAP5095":0.5793343186378479,"precision":0.9474772214889526,"recall":0.8344491720199585,"f1":0.8841506838798523},{"epoch":20,"mAP50":0.9077050089836121,"mAP5095":0.5860189199447632,"precision":0.9267743229866028,"recall":0.8429998755455017,"f1":0.8780957460403442},{"epoch":21,"mAP50":0.9063733816146851,"mAP5095":0.5824624300003052,"precision":0.9242442846298218,"recall":0.8573269844055176,"f1":0.8863911628723145},{"epoch":22,"mAP50":0.9065805673599243,"mAP5095":0.5860706567764282,"precision":0.9168850183486938,"recall":0.8573269844055176,"f1":0.8824422359466553},{"epoch":23,"mAP50":0.9074211120605469,"mAP5095":0.5844760537147522,"precision":0.9023733139038086,"recall":0.8835676312446594,"f1":0.8875517845153809},{"epoch":24,"mAP50":0.9227792024612427,"mAP5095":0.5844069123268127,"precision":0.9373611807823181,"recall":0.8735676407814026,"f1":0.9005561470985413},{"epoch":25,"mAP50":0.9245088696479797,"mAP5095":0.5832803845405579,"precision":0.9126694798469543,"recall":0.8840939402580261,"f1":0.8956738710403442},{"epoch":26,"mAP50":0.9255204796791077,"mAP5095":0.5807359218597412,"precision":0.9428157210350037,"recall":0.863567590713501,"f1":0.8986514210700989},{"epoch":27,"mAP50":0.9257625937461853,"mAP5095":0.5756613612174988,"precision":0.899199366569519,"recall":0.8998082280158997,"f1":0.8953038454055786},{"epoch":28,"mAP50":0.9262357950210571,"mAP5095":0.5763153433799744,"precision":0.9287927746772766,"recall":0.863567590713501,"f1":0.8921695947647095},{"epoch":29,"mAP50":0.9232397675514221,"mAP5095":0.5701693892478943,"precision":0.9280538558959961,"recall":0.857853353023529,"f1":0.8883997797966003},{"epoch":30,"mAP50":0.9212515354156494,"mAP5095":0.5817846059799194,"precision":0.9426446557044983,"recall":0.8353514075279236,"f1":0.880984902381897},{"epoch":31,"mAP50":0.918286919593811,"mAP5095":0.5817681550979614,"precision":0.9639081954956055,"recall":0.8368006944656372,"f1":0.8913045525550842},{"epoch":32,"mAP50":0.9162878394126892,"mAP5095":0.575867235660553,"precision":0.9822866320610046,"recall":0.8473269939422607,"f1":0.9058665037155151},{"epoch":33,"mAP50":0.9201267957687378,"mAP5095":0.5755867958068848,"precision":0.9472930431365967,"recall":0.857853353023529,"f1":0.8982430696487427},{"epoch":34,"mAP50":0.9149028062820435,"mAP5095":0.5782540440559387,"precision":0.9580453634262085,"recall":0.8296371102333069,"f1":0.8839502930641174},{"epoch":35,"mAP50":0.9151784777641296,"mAP5095":0.5711013674736023,"precision":0.9685028791427612,"recall":0.8296371102333069,"f1":0.8885021805763245},{"epoch":36,"mAP50":0.9017162322998047,"mAP5095":0.5742558240890503,"precision":0.8832712173461914,"recall":0.8783589601516724,"f1":0.8782495856285095},{"epoch":37,"mAP50":0.9030511975288391,"mAP5095":0.5787898898124695,"precision":0.941851019859314,"recall":0.8401634693145752,"f1":0.8842903971672058},{"epoch":38,"mAP50":0.9109781980514526,"mAP5095":0.5830824375152588,"precision":0.9251552820205688,"recall":0.8444284796714783,"f1":0.8787276148796082},{"epoch":39,"mAP50":0.9100056290626526,"mAP5095":0.5851488709449768,"precision":0.9182288646697998,"recall":0.83390212059021,"f1":0.8678140044212341},{"epoch":40,"mAP50":0.9131948947906494,"mAP5095":0.5873305797576904,"precision":0.8833618760108948,"recall":0.8530412912368774,"f1":0.8605443835258484},{"epoch":41,"mAP50":0.9192991256713867,"mAP5095":0.583211362361908,"precision":0.9436215758323669,"recall":0.8305600881576538,"f1":0.875170886516571},{"epoch":42,"mAP50":0.9149537682533264,"mAP5095":0.5793676376342773,"precision":0.8841207027435303,"recall":0.8678533434867859,"f1":0.8706518411636353},{"epoch":43,"mAP50":0.9162543416023254,"mAP5095":0.582499623298645,"precision":0.8892279267311096,"recall":0.872118353843689,"f1":0.876175045967102},{"epoch":44,"mAP50":0.9173724055290222,"mAP5095":0.5761849880218506,"precision":0.8900362253189087,"recall":0.8806690573692322,"f1":0.8790888786315918},{"epoch":45,"mAP50":0.9097821116447449,"mAP5095":0.5803062319755554,"precision":0.8657695055007935,"recall":0.8897461295127869,"f1":0.8720896244049072},{"epoch":46,"mAP50":0.9114811420440674,"mAP5095":0.5866492986679077,"precision":0.9324361681938171,"recall":0.8367385864257812,"f1":0.8759459853172302},{"epoch":47,"mAP50":0.9125834703445435,"mAP5095":0.582218587398529,"precision":0.9028043746948242,"recall":0.8592404723167419,"f1":0.8759251236915588},{"epoch":48,"mAP50":0.9135212898254395,"mAP5095":0.5815618634223938,"precision":0.8901605606079102,"recall":0.8683175444602966,"f1":0.8751150965690613},{"epoch":49,"mAP50":0.9147303700447083,"mAP5095":0.5795041918754578,"precision":0.9020289778709412,"recall":0.8697668313980103,"f1":0.8828918933868408},{"epoch":50,"mAP50":0.9149115681648254,"mAP5095":0.5839554071426392,"precision":0.9020289778709412,"recall":0.8697668313980103,"f1":0.8828918933868408},{"epoch":51,"mAP50":0.9121704697608948,"mAP5095":0.5815868973731995,"precision":0.9157148599624634,"recall":0.8712160587310791,"f1":0.8904140591621399},{"epoch":52,"mAP50":0.9179173111915588,"mAP5095":0.586906373500824,"precision":0.9240607023239136,"recall":0.8783796429634094,"f1":0.8981133699417114},{"epoch":53,"mAP50":0.9268673658370972,"mAP5095":0.5857247114181519,"precision":0.9269565343856812,"recall":0.894093930721283,"f1":0.9074004292488098},{"epoch":54,"mAP50":0.9249136447906494,"mAP5095":0.579267144203186,"precision":0.9161232113838196,"recall":0.894093930721283,"f1":0.9026243090629578},{"epoch":55,"mAP50":0.9266142249107361,"mAP5095":0.5749603509902954,"precision":0.9061158895492554,"recall":0.894093930721283,"f1":0.8972528576850891},{"epoch":56,"mAP50":0.9102652072906494,"mAP5095":0.5772971510887146,"precision":0.961635410785675,"recall":0.834845781326294,"f1":0.8841988444328308},{"epoch":57,"mAP50":0.9031558036804199,"mAP5095":0.5759823322296143,"precision":0.9587681293487549,"recall":0.8248457908630371,"f1":0.8778723478317261},{"epoch":58,"mAP50":0.9118082523345947,"mAP5095":0.5788699388504028,"precision":0.9399585723876953,"recall":0.8616127371788025,"f1":0.8947890996932983},{"epoch":59,"mAP50":0.9075766801834106,"mAP5095":0.5778716802597046,"precision":0.9321663975715637,"recall":0.8616127371788025,"f1":0.8906079530715942}]}</script>
+<script>
+(() => {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("bench-data").textContent);
+  const S = DATA.summary;
+  const CASES = DATA.cases;
+  const TRAIN = DATA.training;
+
+  const outcomeMeta = {
+    "TP":        { group: "tp", pill: "good",     icon: "✓", label: "TP" },
+    "TP-даль":   { group: "tp", pill: "warn",     icon: "!", label: "TP вне окна" },
+    "FN ПРОПУСК":{ group: "fn", pill: "critical", icon: "×", label: "FN пропуск" },
+    "FP ЛОЖНЫЙ": { group: "fp", pill: "serious",  icon: "+", label: "FP ложный" },
+    "TN":        { group: "tn", pill: "neutral",  icon: "·", label: "TN" }
+  };
+  const groupCount = { tp: 0, fn: 0, fp: 0, tn: 0 };
+  CASES.forEach(c => { groupCount[outcomeMeta[c.outcome].group]++; });
+
+  const fmt = (n, d = 1) => Number(n).toFixed(d).replace(/\.0$/, ".0");
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]));
+  const el = (tag, attrs = {}, text) => {
+    const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const svgEl = (tag, attrs = {}) => document.createElementNS("http://www.w3.org/2000/svg", tag);
+
+  // ---------- KPI + confusion ----------
+  document.getElementById("heroTp").textContent = S.tp;
+  document.getElementById("cmTp").textContent = S.tp;
+  document.getElementById("cmFn").textContent = S.fn;
+  document.getElementById("cmFp").textContent = S.fp;
+  document.getElementById("cmTn").textContent = S.tn;
+
+  // ---------- composition ----------
+  const stack = document.getElementById("stack");
+  const order = [
+    { key: "tp", cls: "s-tp", label: "TP · найдено", sub: "нарушение обнаружено" },
+    { key: "fp", cls: "s-fp", label: "FP · ложное", sub: "нарушения не было" },
+    { key: "tn", cls: "s-tn", label: "TN · чисто", sub: "верно «без нарушения»" },
+    { key: "fn", cls: "s-fn", label: "FN · пропуск", sub: "нарушение не найдено" }
+  ];
+  order.forEach(o => {
+    const seg = document.createElement("span");
+    seg.className = o.cls;
+    seg.style.width = (groupCount[o.key] / CASES.length * 100) + "%";
+    seg.title = `${o.label}: ${groupCount[o.key]}`;
+    stack.appendChild(seg);
+  });
+  const legend = document.getElementById("stackLegend");
+  order.forEach(o => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="sw" style="background: var(--${o.key === "tp" ? "good" : o.key === "fp" ? "serious" : o.key === "tn" ? "neutral" : "critical"})"></span>
+      <span>${o.label}<span class="sub">${o.sub}</span></span>
+      <span class="num">${groupCount[o.key]}</span>`;
+    legend.appendChild(li);
+  });
+
+  // ---------- table ----------
+  const tbody = document.getElementById("caseRows");
+  CASES.slice().sort((a, b) => parseInt(a.video.slice(2), 10) - parseInt(b.video.slice(2), 10)).forEach(c => {
+    const m = outcomeMeta[c.outcome];
+    const tr = document.createElement("tr");
+    tr.dataset.group = m.group;
+    const tcs = c.our_tcs.length ? c.our_tcs.join(", ") : "—";
+    tr.innerHTML = `
+      <td class="video">${esc(c.video)}</td>
+      <td><span class="pill ${m.pill}"><span class="ic" aria-hidden="true">${m.icon}</span>${m.label}</span></td>
+      <td class="num">${c.label_tc == null ? "—" : c.label_tc.toFixed(0)}</td>
+      <td class="tcs">${esc(tcs)}</td>
+      <td class="num">${c.our_tcs.length || "—"}</td>
+      <td class="num">${c.delta == null ? "—" : c.delta.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const chips = [...document.querySelectorAll(".chip[data-filter]")];
+  const shown = document.getElementById("shownCount");
+  chips.forEach(chip => {
+    chip.addEventListener("click", () => {
+      chips.forEach(c => c.setAttribute("aria-pressed", String(c === chip)));
+      const f = chip.dataset.filter;
+      let n = 0;
+      [...tbody.children].forEach(tr => {
+        const keep = f === "all" || tr.dataset.group === f;
+        tr.hidden = !keep;
+        if (keep) n++;
+      });
+      shown.textContent = `показано ${n}`;
+    });
+  });
+
+  // ---------- shared tooltip ----------
+  function bindTip(shell, tip) {
+    return {
+      show(html, x, y) {
+        tip.innerHTML = html;
+        tip.style.left = x + "px";
+        tip.style.top = y + "px";
+        tip.classList.add("on");
+      },
+      hide() { tip.classList.remove("on"); }
+    };
+  }
+  const deltaTip = bindTip(document.getElementById("deltaShell"), document.getElementById("deltaTip"));
+  const trainTip = bindTip(document.getElementById("trainShell"), document.getElementById("trainTip"));
+
+  // ---------- delta chart ----------
+  (function renderDelta() {
+    const svg = document.getElementById("deltaChart");
+    const tps = CASES.filter(c => c.outcome === "TP" || c.outcome === "TP-даль")
+      .slice().sort((a, b) => a.delta - b.delta);
+    const W = 760, left = 58, right = 88, top = 30, rowH = 24, bottom = 36;
+    const H = top + tps.length * rowH + bottom;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const xmax = 24;
+    const x = s => left + (s / xmax) * (W - left - right);
+    const y = i => top + i * rowH;
+
+    // window band
+    svg.appendChild(el("rect", {
+      x: x(0), y: top, width: x(10) - x(0), height: tps.length * rowH,
+      fill: "var(--band)"
+    }));
+    // grid
+    [0, 5, 10, 15, 20].forEach(v => {
+      svg.appendChild(el("line", {
+        x1: x(v), x2: x(v), y1: top - 4, y2: top + tps.length * rowH,
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      svg.appendChild(el("text", {
+        x: x(v), y: top + tps.length * rowH + 18, "text-anchor": "middle",
+        "class": "axis-label"
+      }, v === 20 ? "20 с" : String(v)));
+    });
+    // threshold line + label
+    svg.appendChild(el("line", {
+      x1: x(10), x2: x(10), y1: top - 10, y2: top + tps.length * rowH,
+      stroke: "var(--axis)", "stroke-width": 1.5
+    }));
+    svg.appendChild(el("text", {
+      x: x(10) + 6, y: top - 13, "class": "threshold-label"
+    }, "окно ±10 с"));
+
+    tps.forEach((c, i) => {
+      const cy = y(i) + rowH / 2;
+      const outside = c.delta > 10;
+      svg.appendChild(el("line", {
+        x1: x(0), x2: x(c.delta), y1: cy, y2: cy,
+        stroke: "var(--line-strong)", "stroke-width": 1
+      }));
+      svg.appendChild(el("text", {
+        x: left - 10, y: cy + 3.5, "text-anchor": "end", "class": "axis-label",
+        style: "fill: var(--ink-2); font-size: 11px"
+      }, c.video));
+      const dot = el("circle", {
+        cx: x(c.delta), cy, r: outside ? 5 : 4.5,
+        fill: outside ? "var(--critical)" : "var(--good)",
+        stroke: "var(--panel)", "stroke-width": 2
+      });
+      svg.appendChild(dot);
+      if (outside) {
+        svg.appendChild(el("text", {
+          x: x(c.delta) - 11, y: cy + 3.5, "text-anchor": "end", "class": "threshold-label",
+          style: "fill: var(--critical-text); font-size: 10px"
+        }, `${c.delta.toFixed(1)} с · вне окна`));
+      }
+      // generous hit target
+      const hit = el("rect", {
+        x: left, y: y(i), width: W - left - right + 20, height: rowH,
+        fill: "transparent", tabindex: "0", role: "listitem",
+        "aria-label": `${c.video}: метка ${c.label_tc} секунд, ближайший таймкод ${c.our_tcs[0]} секунд, отклонение ${c.delta.toFixed(1)} секунд`
+      });
+      const tipHtml = `<span class="tip-key">${esc(c.video)}</span> · метка ${c.label_tc.toFixed(0)} с<br>ближайший наш: ${c.our_tcs[0]} с · Δ ${c.delta.toFixed(1)} с`;
+      const showAt = (clientX, clientY) => {
+        const r = svg.getBoundingClientRect();
+        deltaTip.show(tipHtml, clientX - r.left, clientY - r.top);
+      };
+      hit.addEventListener("mousemove", e => showAt(e.clientX, e.clientY));
+      hit.addEventListener("mouseleave", deltaTip.hide);
+      hit.addEventListener("focus", () => {
+        const r = svg.getBoundingClientRect();
+        const box = hit.getBBox();
+        const sx = r.width / W;
+        deltaTip.show(tipHtml, (box.x + box.width) * sx, box.y * (r.height / H) + 6);
+      });
+      hit.addEventListener("blur", deltaTip.hide);
+      svg.appendChild(hit);
+    });
+  })();
+
+  // ---------- training chart ----------
+  (function renderTraining() {
+    const svg = document.getElementById("trainChart");
+    const W = 760, H = 300, left = 44, right = 132, top = 20, bottom = 36;
+    const n = TRAIN.length;
+    const x = i => left + (i / (n - 1)) * (W - left - right);
+    const y = v => top + (1 - v) * (H - top - bottom);
+    const plotW = W - left - right, plotH = H - top - bottom;
+
+    // grid + y labels
+    [0, 0.2, 0.4, 0.6, 0.8, 1.0].forEach(v => {
+      svg.appendChild(el("line", {
+        x1: left, x2: W - right, y1: y(v), y2: y(v),
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      svg.appendChild(el("text", {
+        x: left - 9, y: y(v) + 3.5, "text-anchor": "end", "class": "axis-label"
+      }, v.toFixed(1)));
+    });
+    // x ticks
+    [0, 10, 20, 30, 40, 50, 59].forEach(e => {
+      const i = TRAIN.findIndex(d => d.epoch === e);
+      if (i < 0) return;
+      svg.appendChild(el("line", {
+        x1: x(i), x2: x(i), y1: H - bottom, y2: H - bottom + 5,
+        stroke: "var(--axis)", "stroke-width": 1
+      }));
+      svg.appendChild(el("text", {
+        x: x(i), y: H - bottom + 18, "text-anchor": "middle", "class": "axis-label"
+      }, String(e)));
+    });
+    svg.appendChild(el("text", {
+      x: left + plotW / 2, y: H - 2, "text-anchor": "middle", "class": "axis-title"
+    }, "эпоха"));
+
+    const series = [
+      { key: "mAP50", color: "var(--series-1)", label: "mAP@50" },
+      { key: "mAP5095", color: "var(--series-2)", label: "mAP@50:95" }
+    ];
+    series.forEach(s => {
+      const d = TRAIN.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[s.key]).toFixed(1)}`).join(" ");
+      svg.appendChild(el("path", {
+        d, fill: "none", stroke: s.color, "stroke-width": 2,
+        "stroke-linejoin": "round", "stroke-linecap": "round"
+      }));
+      // max marker
+      let best = TRAIN[0], bi = 0;
+      TRAIN.forEach((r, i) => { if (r[s.key] > best[s.key]) { best = r; bi = i; } });
+      svg.appendChild(el("circle", {
+        cx: x(bi), cy: y(best[s.key]), r: 4,
+        fill: s.color, stroke: "var(--panel)", "stroke-width": 2
+      }));
+      svg.appendChild(el("text", {
+        x: x(bi) + (bi > n - 8 ? -8 : 8), y: y(best[s.key]) - 9,
+        "text-anchor": bi > n - 8 ? "end" : "start", "class": "series-label"
+      }, best[s.key].toFixed(3)));
+      // endpoint label
+      const last = TRAIN[n - 1];
+      svg.appendChild(el("rect", {
+        x: W - right + 8, y: y(last[s.key]) - 4, width: 8, height: 8, rx: 1.5,
+        fill: s.color
+      }));
+      svg.appendChild(el("text", {
+        x: W - right + 21, y: y(last[s.key]) + 3.5, "class": "series-label"
+      }, `${s.label} ${last[s.key].toFixed(3)}`));
+    });
+
+    // hover
+    const cross = el("line", {
+      x1: 0, x2: 0, y1: top, y2: H - bottom,
+      stroke: "var(--axis)", "stroke-width": 1, opacity: "0"
+    });
+    svg.appendChild(cross);
+    const dots = series.map(s => {
+      const c = el("circle", {
+        r: 4, fill: s.color, stroke: "var(--panel)", "stroke-width": 2, opacity: "0"
+      });
+      svg.appendChild(c);
+      return c;
+    });
+    const overlay = el("rect", {
+      x: left, y: top, width: plotW, height: plotH, fill: "transparent"
+    });
+    svg.appendChild(overlay);
+    const hide = () => {
+      cross.setAttribute("opacity", "0");
+      dots.forEach(d => d.setAttribute("opacity", "0"));
+      trainTip.hide();
+    };
+    overlay.addEventListener("mousemove", e => {
+      const r = svg.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (W / r.width);
+      const rel = Math.min(1, Math.max(0, (px - left) / plotW));
+      const i = Math.round(rel * (n - 1));
+      const rec = TRAIN[i];
+      cross.setAttribute("x1", x(i));
+      cross.setAttribute("x2", x(i));
+      cross.setAttribute("opacity", "1");
+      series.forEach((s, j) => {
+        dots[j].setAttribute("cx", x(i));
+        dots[j].setAttribute("cy", y(rec[s.key]));
+        dots[j].setAttribute("opacity", "1");
+      });
+      trainTip.show(
+        `<span class="tip-key">эпоха ${rec.epoch}</span><br>` +
+        series.map(s => `${s.label}: ${rec[s.key].toFixed(3)}`).join("<br>"),
+        e.clientX - r.left, e.clientY - r.top
+      );
+    });
+    overlay.addEventListener("mouseleave", hide);
+  })();
+
+  // ---------- epoch table ----------
+  (function renderEpochs() {
+    const body = document.getElementById("epochRows");
+    const picked = TRAIN.filter((r, i) => i === 0 || r.epoch % 5 === 0 || i === TRAIN.length - 1);
+    picked.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="num">${r.epoch}</td><td class="num">${r.mAP50.toFixed(3)}</td>
+        <td class="num">${r.mAP5095.toFixed(3)}</td><td class="num">${r.precision.toFixed(3)}</td>
+        <td class="num">${r.recall.toFixed(3)}</td><td class="num">${r.f1.toFixed(3)}</td>`;
+      body.appendChild(tr);
+    });
+  })();
+})();
+</script>
