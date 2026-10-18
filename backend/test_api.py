@@ -60,11 +60,12 @@ class ApiTest(unittest.TestCase):
             self.assertEqual(self.upload().status_code, 503)
 
     def test_upload_and_job(self):
-        # Перцепция не готова (W2/W3): задание честно падает в failed, без выдумок.
-        response = self.upload("VIDEO.MOV")
-        self.assertEqual(response.status_code, 202)
-        job_id = response.json()["job_id"]
-        data = self.wait_job(job_id)
+        # Перцепция не готова (нет W2-весов): задание честно падает в failed, без выдумок.
+        with patch.dict(os.environ, {"W2_WEIGHTS": "/no/such/weights.pth"}):
+            response = self.upload("VIDEO.MOV")
+            self.assertEqual(response.status_code, 202)
+            job_id = response.json()["job_id"]
+            data = self.wait_job(job_id)
         self.assertEqual(data["status"], "failed")
         self.assertIn("configured", data["error"])
         self.assertEqual(self.upload("video.mp4").status_code, 202)
