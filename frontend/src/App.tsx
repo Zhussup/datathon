@@ -231,6 +231,12 @@ export default function App() {
       setApiState(opts ? "pending" : "off");
     });
     if (opts) void startUpload(next, opts);
+    else {
+      // X-API-Key обязателен: без ключа файл на анализ не уходит, открываем
+      // ввод ключа; после сохранения saveApiKey перезапустит chooseFile.
+      setError("Для загрузки на анализ введите X-API-Key (кнопка API в шапке).");
+      setApiModalOpen(true);
+    }
   }
 
   // Файл уходит в локальный сервис сразу при выборе; пока он едет, интерфейс
