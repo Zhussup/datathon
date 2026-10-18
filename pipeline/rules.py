@@ -38,6 +38,7 @@ T_R7 = "Личные вещи в кассовом узле"
 T_R8 = "Признак: нарушение порядка рабочего места"
 T_R9 = "Кассовая зона не закрыта"
 T_R10 = "Приём без пересчёта и оформления"
+T_R11 = "Деньги не убраны при приёме следующего клиента"
 
 
 @dataclass
@@ -53,6 +54,9 @@ class Config:
     r8_min: float = 5.0      # R8: штампы/экран при уходе ≥ 5 c
     r9_min: float = 5.0      # R9: дверь открыта ≥ 5 c
     r10_back: float = 60.0   # R10: money_to_safe ищет money_handover не дальше назад
+    r11_grace: float = 2.0   # R11: банкноты на столе в окне [t0-1, t0+grace] нового клиента
+    r11_stale: float = 10.0  # R11: деньги «старые», если handover был раньше чем за 10 c до
+    r11_gap: float = 7.0     # R11: person_enter ближе 7 c — один и тот же эпизод
 
 
 @dataclass(frozen=True)
@@ -301,3 +305,52 @@ def _r10_eval(ft, anchor, cfg):
 
 
 rule("R10", "order", T_R10, NPA_R10, True, _r10_trig, _r10_eval)
+
+
+# ---------- R11 Деньги прошлого клиента при новом клиенте --------------------------
+# Х-4/Х-47: кассир не убрала деньги первого клиента (в сейф), приняла второго
+# и смешала стопки. Видимый факт — банкноты на столе в момент старта новой
+# сессии; квалификация — хранение в закрывающемся устройстве (п. 20 абз. 2).
+
+def _r11_trig(ft, cfg):
+    anchors = [(s.t0, s.t0) for s in ft.sessions()[1:]]
+    anchors += [(t, t) for t in ft.event_times("person_enter")]
+    return sorted(anchors)
+
+
+def _r11_eval(ft, anchor, cfg):
+    t0 = anchor[0]
+    # новый клиент приходит при открытой сессии и «висящих» деньгах
+    cp = ft.states.get("client_present")
+    if cp is not None and not cp[ft.tick_index(t0)]:
+        return None
+    m = ft.mask_or("banknotes_on_desk", "money_bag_on_desk")
+    i0 = ft.tick_index(max(0.0, t0 - 1.0))
+    i1 = ft.tick_index(min(t0 + cfg.r11_grace, ft.duration))
+    if not any(m[i] for i in range(i0, i1 + 1)):
+        return None
+    # кластеризация: повторные person_enter при тех же деньгах — один эпизод;
+    # сохраняем первый и последний якорь кластера (начало и конец эпизода)
+    cand = sorted(t for t in ft.event_times("person_enter")
+                  if cp is None or cp[ft.tick_index(t)])
+    clusters: list[list[float]] = []
+    for t in cand:
+        if clusters and t - clusters[-1][-1] <= cfg.r11_gap:
+            clusters[-1].append(t)
+        else:
+            clusters.append([t])
+    keep = {c[0] for c in clusters} | {c[-1] for c in clusters}
+    if cand and t0 in cand and t0 not in keep:
+        return None  # дубль внутри кластера
+    h = ft.last_event("money_handover", 0.0, t0 - cfg.r11_stale)
+    if h is None and t0 > 0:
+        return None  # деньги на столе не от предыдущего клиента
+    htxt = f", принятые на {h:.1f} с" if h is not None else ""
+    return Event("R11", T_R11, t0, [round(max(0.0, t0 - 1.0), 1), round(min(t0 + 1.0, ft.duration), 1)],
+                 NPA_R2, True,
+                 f"На {t0:.1f} с появляется новый человек, а банкноты на рабочей поверхности"
+                 f"{htxt} не убраны на хранение: приём и хранение наличных не разделены, "
+                 f"возможно смешивание сумм разных клиентов.")
+
+
+rule("R11", "order", T_R11, NPA_R2, True, _r11_trig, _r11_eval)
