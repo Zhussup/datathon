@@ -37,6 +37,14 @@ export function apiOptions(): ApiOptions | null {
   return { baseUrl: import.meta.env.VITE_API_BASE ?? "", apiKey };
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function uploadForAnalysis(
   file: File,
   opts: ApiOptions,
@@ -51,7 +59,10 @@ export async function uploadForAnalysis(
     signal,
   });
   if (!response.ok) {
-    throw new Error(`Сервис отклонил загрузку (HTTP ${response.status})`);
+    if (response.status === 401) {
+      throw new ApiError(401, "Ключ отклонён сервисом (HTTP 401).");
+    }
+    throw new ApiError(response.status, `Сервис отклонил загрузку (HTTP ${response.status})`);
   }
   const data = (await response.json()) as { job_id?: string };
   if (!data.job_id) throw new Error("Сервис не вернул идентификатор задачи");
@@ -74,7 +85,10 @@ export async function awaitJob(
       signal,
     });
     if (!response.ok) {
-      throw new Error(`Сервис не вернул статус задачи (HTTP ${response.status})`);
+      if (response.status === 401) {
+        throw new ApiError(401, "Ключ отклонён сервисом (HTTP 401).");
+      }
+      throw new ApiError(response.status, `Сервис не вернул статус задачи (HTTP ${response.status})`);
     }
     const job = (await response.json()) as Job;
     if (job.status !== "processing") return job;

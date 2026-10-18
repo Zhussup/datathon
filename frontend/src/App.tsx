@@ -8,7 +8,7 @@ import { Lightbox } from "./Lightbox";
 import { ApiKeyModal } from "./ApiKeyModal";
 import { formatTime, validateVideo } from "./video";
 import { finishTransition, transition } from "./motion";
-import { apiOptions, awaitJob, uploadForAnalysis } from "./api";
+import { ApiError, apiOptions, awaitJob, uploadForAnalysis } from "./api";
 import type { ApiOptions, EvidenceFrame, Job, JobResult } from "./api";
 
 const FORTEE_API_KEY_STORAGE = "forte-api-key";
@@ -234,7 +234,8 @@ export default function App() {
   }
 
   // Файл уходит в локальный сервис сразу при выборе; пока он едет, интерфейс
-  // живёт своей хореографией. Если сервис недоступен — тихо переходим в демо.
+  // живёт своей хореографией. Если сервис недоступен — тихо переходим в демо;
+  // если сервис отклонил КЛЮЧ — открываем ввод ключа, это не демо-случай.
   async function startUpload(uploading: File, opts: ApiOptions) {
     const epoch = uploadEpoch.current;
     try {
@@ -242,7 +243,14 @@ export default function App() {
       if (uploadEpoch.current !== epoch) return;
       setJobId(id);
       setApiState("live");
-    } catch {
+    } catch (e) {
+      if (uploadEpoch.current !== epoch) return;
+      if (e instanceof ApiError && e.status === 401) {
+        setApiState("off");
+        setError(e.message);
+        setApiModalOpen(true);
+        return;
+      }
       if (uploadEpoch.current !== epoch) return;
       setApiState("off");
     }
