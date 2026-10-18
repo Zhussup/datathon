@@ -176,6 +176,166 @@ def main() -> int:
         for t, box in samples:
             track_history.setdefault(tid, []).append((t, box, cy(box)))
 
+    # ---------- отсев «призраков» (отражения в стекле, люди за стеклом) ----------
+    # Стеклянная перегородка/дверь даёт зеркальные дубли людей; COCO считает их
+    # отдельными person → client_present/clients_2plus растут, R5 срабатывает
+    # на пустом месте. Инварианты зеркального дубля:
+    #   G1 статики: пара неподвижных треков, симметричных относительно терминала
+    #      (маркер линии стекла — терминал стоит на столе у перегородки);
+    #   G2 динамики: у пары треков перемещения синхронны с нулевым лагом
+    #      (живая очередь рассинхронизирована: шаг с отставанием);
+    # призрак в обеих проверках — тот, кто дальше от камеры (меньше cy; y = глубина).
+    GHOST_MIN_LIFE = 5.0      # с: минимальное время жизни статики
+    GHOST_STATIC_DISP = 0.07  # доля W: неподвижность центра bbox
+    GHOST_MIRROR_X = 0.20     # доля W: допуск симметрии вокруг терминала по x
+    GHOST_MIRROR_Y = 0.35     # доля H: допуск по y (стекло выше и ниже стола)
+    GHOST_H_RATIO = (0.65, 1.45)
+    GHOST_COVIS = 0.85        # доля совместной видимости (дубль живёт со источником)
+    GHOST_DX_CORR = 0.85
+
+    traj: dict[int, list[tuple[float, tuple]]] = {
+        tid: sorted(s) for tid, s in tracks.items()
+    }
+
+    def _pearson(xs: list[float], ys: list[float]) -> float | None:
+        n = len(xs)
+        if n < 4:
+            return None
+        mx, my = sum(xs) / n, sum(ys) / n
+        sxx = sum((x - mx) ** 2 for x in xs)
+        syy = sum((y - my) ** 2 for y in ys)
+        if sxx <= 1e-9 or syy <= 1e-9:
+            return None  # нет движения у одной из серий — корреляции нет
+        sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+        return sxy / (sxx * syy) ** 0.5
+
+    def _med_center() -> tuple[float, float] | None:
+        """Терминал — маркер линии стекла: медианный центр за всё видео."""
+        cs = []
+        for t in times:
+            for o in prim_by_t.get(t, []):
+                if o["cls"] == PRIM_TERMINAL:
+                    b = o["xyxy"]
+                    cs.append(((b[0] + b[2]) / 2, (b[1] + b[3]) / 2))
+        if not cs:
+            return None
+        return (sorted(c[0] for c in cs)[len(cs) // 2],
+                sorted(c[1] for c in cs)[len(cs) // 2])
+
+    ghost_tids: set[int] = set()
+    term_c = _med_center()
+    tids = sorted(traj)
+    for i, a in enumerate(tids):
+        if a in ghost_tids:
+            continue  # призрак не источник новых призраков
+        sa = traj[a]
+        if not sa:
+            continue
+        (ax1, ay1, ax2, ay2) = sa[0][1]
+        life_a = sa[-1][0] - sa[0][0]
+        # центральные серии для G1/G2
+        ca = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for _, b in sa]
+        sta_a = (life_a >= GHOST_MIN_LIFE
+                 and max(max(abs(c[0] - ca[0][0]), abs(c[1] - ca[0][1])) for c in ca)
+                 <= GHOST_STATIC_DISP * W)
+        ha = sum(b[3] - b[1] for _, b in sa) / len(sa)
+        cya = sum(c[1] for c in ca) / len(ca)
+        ts_a = {t for t, _ in sa}
+        for b in tids[i + 1:]:
+            if b in ghost_tids:
+                continue
+            sb = traj[b]
+            if not sb:
+                continue
+            common = [t for t, _ in sb if t in ts_a]
+            life_b = sb[-1][0] - sb[0][0]
+            covis = len(common) / max(1.0, min(len(sa), len(sb)))
+            if covis < GHOST_COVIS:
+                continue
+            hb = sum(bb[3] - bb[1] for _, bb in sb) / len(sb)
+            hr = hb / max(1.0, ha)
+            if not (GHOST_H_RATIO[0] <= hr <= GHOST_H_RATIO[1]):
+                continue
+            cb = [((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2) for _, bb in sb]
+            cyb = sum(c[1] for c in cb) / len(cb)
+            drop: int | None = None
+            # G1: оба неподвижны и зеркальны вокруг терминала
+            sta_b = (life_b >= GHOST_MIN_LIFE
+                     and max(max(abs(c[0] - cb[0][0]), abs(c[1] - cb[0][1])) for c in cb)
+                     <= GHOST_STATIC_DISP * W)
+            if sta_a and sta_b and term_c:
+                if (abs(ca[len(ca) // 2][0] + cb[len(cb) // 2][0] - 2 * term_c[0])
+                        <= GHOST_MIRROR_X * W
+                        and abs(ca[len(ca) // 2][1] + cb[len(cb) // 2][1]
+                                - 2 * term_c[1]) <= GHOST_MIRROR_Y * H):
+                    drop = a if cya < cyb else b
+            # G2: синхронное движение с нулевым лагом
+            if drop is None:
+                by_t = {t: bb for t, bb in sb}
+                dxa, dxb = [], []
+                for j, (t, ba) in enumerate(sa[:-1]):
+                    t2 = sa[j + 1][0]
+                    ba2 = sa[j + 1][1]
+                    bb = by_t.get(t)
+                    bb2 = by_t.get(t2)
+                    if bb is None or bb2 is None:
+                        continue
+                    dxa.append((ba2[0] + ba2[2]) / 2 - (ba[0] + ba[2]) / 2)
+                    dxb.append((bb2[0] + bb2[2]) / 2 - (bb[0] + bb[2]) / 2)
+                r = _pearson(dxa, dxb)
+                if r is not None and abs(r) >= GHOST_DX_CORR:
+                    drop = a if cya < cyb else b
+            if drop is not None:
+                ghost_tids.add(drop)
+
+    # G3: статичный «призрак» от начала видео и почти до конца. Отражение
+    # сидящего кассира в стекле (частый случай «второго клиента») и
+    # мебель-«персона» неподвижны весь ролик и стоят в полосе клиента уже на
+    # старте; живой клиент всегда приходит движением. Убираем из разбора,
+    # R5/client_present перестают считать его вторым посетителем.
+    if times and traj:
+        # статичные треки (жизнь ≥ GHOST_MIN_LIFE, малое смещение центра)
+        st: list[tuple[int, list[tuple[float, float]]]] = []
+        for tid, s in traj.items():
+            if tid in ghost_tids or len(s) < 4 or (s[-1][0] - s[0][0]) < GHOST_MIN_LIFE:
+                continue
+            cs = [((b[0] + b[2]) / 2, (b[1] + b[3]) / 2) for _, b in s]
+            if max(max(abs(c[0] - cs[0][0]), abs(c[1] - cs[0][1])) for c in cs) \
+                    > GHOST_STATIC_DISP * W:
+                continue
+            st.append((tid, cs))
+        st.sort(key=lambda p_: -sum(c[1] for c in p_[1]) / len(p_[1]))  # глубокие первыми
+        for ta, ca in st:
+            if ta in ghost_tids:
+                continue
+            mcy_a = sum(c[1] for c in ca) / len(ca) / H
+            life_a = traj[ta][-1][0] - traj[ta][0][0]
+            # G3a: длинный статик от старта видео в полосе клиента — отражение
+            # сидящего кассира или мебель-«персона»
+            if (life_a >= 0.55 * duration and traj[ta][0][0] <= 3.0
+                    and CLIENT_BAND[0] <= mcy_a <= CLIENT_BAND[1]):
+                ghost_tids.add(ta)
+                continue
+            # G3b: короткий статик-дубль при долгом статичном «источнике»
+            # глубже (кассир сидит весь ролик, его отражение — на 4 с)
+            for tb, cb in st:
+                if tb in ghost_tids or tb == ta:
+                    continue
+                mcy_b = sum(c[1] for c in cb) / len(cb) / H
+                life_b = traj[tb][-1][0] - traj[tb][0][0]
+                if (life_b > 1.8 * life_a and mcy_b > mcy_a > 0.10
+                        and CLIENT_BAND[0] <= mcy_a <= CLIENT_BAND[1] + 0.05):
+                    ghost_tids.add(ta)
+                    break
+
+    # боксы призраков per-tick для исключения из покадрового разбора
+    ghost_at_t: dict[float, set[tuple]] = {}
+    for tid in ghost_tids:
+        for t, box in traj[tid]:
+            ghost_at_t.setdefault(t, set()).add(tuple(box))
+    if ghost_tids:
+        print(f"  призраки (отражения/за стеклом): {len(ghost_tids)} трек(ов) отсеяно")
+
     # ---------- состояния: сначала ПОКАДРОВО, потом заливка на тиковую сетку ----------
     # Кадры идут с периодом dt (обычно 1 c), а тики — 0.5 c. Нельзя вычислять
     # состояния на тиках напрямую: тики без кадра («нет данных») ловушкой идут
@@ -189,7 +349,8 @@ def main() -> int:
 
     for k, t in enumerate(times):
         prims_t = prim_by_t.get(t, [])
-        persons_t = person_by_t.get(t, [])
+        persons_t = [p for p in person_by_t.get(t, [])
+                     if tuple(p["xyxy"]) not in ghost_at_t.get(t, ())]
         # y = ГЛУБИНА: клиент — верхняя полоса (у стойки со стороны посетителей).
         # «У рабочего места» = bbox по x перекрывает терминал на столе (маркер
         # стола, детектится на каждом кадре): y-полоса не отличает отошедшего
@@ -201,6 +362,9 @@ def main() -> int:
             at_desk = [p for p in persons_t if crosses_desk(p["xyxy"], term_boxes)]
         else:
             at_desk = [p for p in persons_t if in_zone(p["xyxy"], CASHIER_BAND)]
+        # «Клиентом» не считается тот, кто у рабочего места... — ОТКАТ:
+        # пересечение терминала не разделяет кассира и клиента (и тот и
+        # другой пересекают терминал при передаче денег — ТП падают).
         if at_client:
             fvals["client_present"][k] = True
         if at_desk:
@@ -335,6 +499,8 @@ def main() -> int:
     # person_enter: новый track_id появился (когда до этого было 0 tracks в кадре)
     seen_tids: set[int] = set()
     for tid, samples in tracks.items():
+        if tid in ghost_tids:
+            continue  # отражение не «вход»
         first_t = samples[0][0]
         if not seen_tids and False:  # первый вообще — не считается (это кассир)
             seen_tids.add(tid)
@@ -393,6 +559,7 @@ def main() -> int:
             "frames": len(frames),
             "n_ticks": n,
             "n_tracks": len(tracks),
+            "n_ghosts": len(ghost_tids),
             "prims_source": args.preds,
             "persons_source": args.preds_persons,
             "warnings": "no door_open, no key_in_lock, no bag_on_desk, no drink (no detector)",
@@ -402,7 +569,7 @@ def main() -> int:
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
     print(f"готово: {args.out}")
-    print(f"  duration={duration:.1f}s  ticks={n}  tracks={len(tracks)}")
+    print(f"  duration={duration:.1f}s  ticks={n}  tracks={len(tracks)}  ghosts={len(ghost_tids)}")
     print(f"  events: " + ", ".join(f"{k}={len(v)}" for k, v in events.items()))
     print(f"  intervals: " + ", ".join(f"{k}={len(v)}" for k, v in intervals_out.items()))
     print(f"  sessions (client_present merged): {len(sessions_intervals)}")
